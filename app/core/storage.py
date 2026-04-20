@@ -113,7 +113,7 @@ class Storage:
                 "last_salesperson": "",
                 "last_customer": "",
                 "last_order_type": "外贸",
-                "last_product_category": "戊二醛",
+                "last_product_category": "环氧树脂",
                 "operator": os.environ.get("USERNAME") or os.environ.get("USER") or "",
             })
         else:
@@ -338,7 +338,7 @@ class Storage:
         """
         根据扫描勾选结果，导入业务员及其客户。
 
-        rel_paths: 每个元素是相对 1订单/ 的路径，如 "张莹莹"、"湖北/文天堂"。
+        rel_paths: 每个元素是相对 1订单/ 的路径，如 "王明辉"、"华南分公司/赵天宇"。
         业务员名取路径最后一段。
         overwrite: True 则覆盖已有同名业务员的 customers / rel_path / mid_layer。
 

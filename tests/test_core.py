@@ -29,8 +29,8 @@ def setup_workspace():
     # 准备模板文件
     (tpl_dir / "通用").mkdir(parents=True)
     (tpl_dir / "外贸通用").mkdir(parents=True)
-    (tpl_dir / "宁夏").mkdir(parents=True)
-    (tpl_dir / "湖北天鹅").mkdir(parents=True)
+    (tpl_dir / "华北工厂").mkdir(parents=True)
+    (tpl_dir / "华南工厂").mkdir(parents=True)
 
     # 生成空的模板文件（内容随意）
     files = [
@@ -38,12 +38,12 @@ def setup_workspace():
         "外贸通用/CI.xlsx",
         "外贸通用/PL.xls",
         "外贸通用/托书.doc",
-        "宁夏/宁夏外贸生产.doc",
-        "宁夏/宁夏外贸发货.docx",
-        "宁夏/宁夏内贸生产.xlsx",
-        "宁夏/宁夏内贸发货.xlsx",
-        "湖北天鹅/湖北天鹅外贸生产.xlsx",
-        "湖北天鹅/湖北天鹅外贸发货.xlsx",
+        "华北工厂/华北工厂外贸生产.doc",
+        "华北工厂/华北工厂外贸发货.docx",
+        "华北工厂/华北工厂内贸生产.xlsx",
+        "华北工厂/华北工厂内贸发货.xlsx",
+        "华南工厂/华南工厂外贸生产.xlsx",
+        "华南工厂/华南工厂外贸发货.xlsx",
     ]
     for f in files:
         (tpl_dir / f).write_text("TEMPLATE CONTENT " + f, encoding="utf-8")
@@ -177,7 +177,7 @@ def test_extras(root):
     s = Storage(root)
     template = s.load_template("standard_export.json")
     order = {"order_type": "外贸", "order_no": "TEST-EXT",
-             "customer": "ACME", "product_category": "戊二醛",
+             "customer": "ACME", "product_category": "环氧树脂",
              "salesperson": "张三", "needs_inspection": False}
     ctx = folder_builder.build_context(order)
     tpl_folders = folder_builder.flatten_template_folders(
@@ -241,8 +241,8 @@ def test_chinese_path():
     s = Storage(root)
     order = {
         "order_type": "外贸", "order_no": "外贸-订单-中文001",
-        "customer": "北京某某公司", "product_category": "戊二醛",
-        "product_info": "戊二醛 200KG", "po_no": "PO-CN-001",
+        "customer": "北京某某公司", "product_category": "环氧树脂",
+        "product_info": "环氧树脂 200KG", "po_no": "PO-CN-001",
         "salesperson": "张三", "needs_inspection": True,
     }
     template = s.load_template("standard_export.json")
@@ -263,41 +263,41 @@ def test_scan_import():
     # 搭建模拟的 1订单 结构
     order_root = Path(root) / "1订单"
     order_root.mkdir()
-    # 1) 船级证（非业务员，不应勾选）
-    (order_root / "船级证-金山IBC").mkdir()
-    (order_root / "船级证-金山IBC" / "2024年.pdf").touch()
-    # 2) 湖北分公司
-    (order_root / "湖北" / "文天堂" / "客户A").mkdir(parents=True)
-    (order_root / "湖北" / "文天堂" / "客户B").mkdir(parents=True)
-    (order_root / "湖北" / "张子航" / "客户C").mkdir(parents=True)
-    # 3) 张莹莹（直接客户）
-    (order_root / "张莹莹" / "LLC KEMIKLKRAFT").mkdir(parents=True)
-    (order_root / "张莹莹" / "客户B").mkdir(parents=True)
-    # 4) 解小康（带"进行中订单"中间层）
-    (order_root / "解小康" / "进行中订单" / "Arxada Tray Siam").mkdir(parents=True)
-    (order_root / "解小康" / "进行中订单" / "BASF Nederland").mkdir(parents=True)
-    (order_root / "解小康" / "2025出运计划表.xlsx").touch()
-    # 5) 吴雅萍（带"1.进行订单"+"2.已完成订单"）
-    (order_root / "吴雅萍" / "1.进行订单" / "客户X").mkdir(parents=True)
-    (order_root / "吴雅萍" / "1.进行订单" / "客户Y").mkdir(parents=True)
-    (order_root / "吴雅萍" / "2.已完成订单" / "客户Z").mkdir(parents=True)
-    (order_root / "吴雅萍" / "3.订能常用文件").mkdir(parents=True)
+    # 1) 技术认证（非业务员，不应勾选）
+    (order_root / "技术认证-滨海仓库").mkdir()
+    (order_root / "技术认证-滨海仓库" / "2024年.pdf").touch()
+    # 2) 华南分公司
+    (order_root / "华南分公司" / "赵天宇" / "客户A").mkdir(parents=True)
+    (order_root / "华南分公司" / "赵天宇" / "客户B").mkdir(parents=True)
+    (order_root / "华南分公司" / "周子涵" / "客户C").mkdir(parents=True)
+    # 3) 王明辉（直接客户）
+    (order_root / "王明辉" / "GlobalChem Trading LLC").mkdir(parents=True)
+    (order_root / "王明辉" / "客户B").mkdir(parents=True)
+    # 4) 李思雨（带"进行中订单"中间层）
+    (order_root / "李思雨" / "进行中订单" / "Pacific Chemicals Co., Ltd").mkdir(parents=True)
+    (order_root / "李思雨" / "进行中订单" / "EuroChem Solutions B.V.").mkdir(parents=True)
+    (order_root / "李思雨" / "2025出运计划表.xlsx").touch()
+    # 5) 刘雅琴（带"1.进行订单"+"2.已完成订单"）
+    (order_root / "刘雅琴" / "1.进行订单" / "客户X").mkdir(parents=True)
+    (order_root / "刘雅琴" / "1.进行订单" / "客户Y").mkdir(parents=True)
+    (order_root / "刘雅琴" / "2.已完成订单" / "客户Z").mkdir(parents=True)
+    (order_root / "刘雅琴" / "3.订能常用文件").mkdir(parents=True)
     # 6) 根目录下杂散文件（应忽略）
     (order_root / "产品中英文对照表.docx").touch()
 
     s = Storage(root)
     # 检查 scan_order_root
     names = s.scan_order_root()
-    assert "船级证-金山IBC" in names
-    assert "湖北" in names
-    assert "张莹莹" in names
+    assert "技术认证-滨海仓库" in names
+    assert "华南分公司" in names
+    assert "王明辉" in names
     assert "产品中英文对照表.docx" not in names, "文件不应出现"
     print(f"  scan_order_root: {names}")
 
-    # 模拟勾选：张莹莹、解小康、吴雅萍、湖北/文天堂、湖北/张子航
-    rel_paths = ["张莹莹", "解小康", "吴雅萍", "湖北/文天堂", "湖北/张子航"]
+    # 模拟勾选：王明辉、李思雨、刘雅琴、华南分公司/赵天宇、华南分公司/周子涵
+    rel_paths = ["王明辉", "李思雨", "刘雅琴", "华南分公司/赵天宇", "华南分公司/周子涵"]
     report = s.import_scanned_salespersons(rel_paths, overwrite=True)
-    assert set(report["added"]) == {"张莹莹", "解小康", "吴雅萍", "文天堂", "张子航"}, \
+    assert set(report["added"]) == {"王明辉", "李思雨", "刘雅琴", "赵天宇", "周子涵"}, \
         f"added = {report['added']}"
     print(f"  import report: {report}")
 
@@ -305,48 +305,48 @@ def test_scan_import():
     sps = s.load_salespersons()
     mp = {sp["name"]: sp for sp in sps}
 
-    # 张莹莹：直接客户，无中间层
-    assert mp["张莹莹"]["rel_path"] == "张莹莹"
-    assert mp["张莹莹"]["mid_layer"] == ""
-    assert "LLC KEMIKLKRAFT" in mp["张莹莹"]["customers"]
+    # 王明辉：直接客户，无中间层
+    assert mp["王明辉"]["rel_path"] == "王明辉"
+    assert mp["王明辉"]["mid_layer"] == ""
+    assert "GlobalChem Trading LLC" in mp["王明辉"]["customers"]
 
-    # 解小康：有"进行中订单"中间层
-    assert mp["解小康"]["rel_path"] == "解小康"
-    assert mp["解小康"]["mid_layer"] == "进行中订单"
-    assert "BASF Nederland" in mp["解小康"]["customers"]
-    assert "2025出运计划表.xlsx" not in mp["解小康"]["customers"]  # 文件被忽略
+    # 李思雨：有"进行中订单"中间层
+    assert mp["李思雨"]["rel_path"] == "李思雨"
+    assert mp["李思雨"]["mid_layer"] == "进行中订单"
+    assert "EuroChem Solutions B.V." in mp["李思雨"]["customers"]
+    assert "2025出运计划表.xlsx" not in mp["李思雨"]["customers"]  # 文件被忽略
 
-    # 吴雅萍：有"1.进行订单"（只进这个）
-    assert mp["吴雅萍"]["mid_layer"] == "1.进行订单", f"mid_layer={mp['吴雅萍']['mid_layer']}"
-    assert set(mp["吴雅萍"]["customers"]) == {"客户X", "客户Y"}, \
-        f"customers={mp['吴雅萍']['customers']}"
+    # 刘雅琴：有"1.进行订单"（只进这个）
+    assert mp["刘雅琴"]["mid_layer"] == "1.进行订单", f"mid_layer={mp['刘雅琴']['mid_layer']}"
+    assert set(mp["刘雅琴"]["customers"]) == {"客户X", "客户Y"}, \
+        f"customers={mp['刘雅琴']['customers']}"
 
-    # 文天堂：分公司下，rel_path=湖北/文天堂
-    assert mp["文天堂"]["rel_path"] == "湖北/文天堂"
-    assert mp["文天堂"]["mid_layer"] == ""
-    assert "客户A" in mp["文天堂"]["customers"]
+    # 赵天宇：分公司下，rel_path=华南分公司/赵天宇
+    assert mp["赵天宇"]["rel_path"] == "华南分公司/赵天宇"
+    assert mp["赵天宇"]["mid_layer"] == ""
+    assert "客户A" in mp["赵天宇"]["customers"]
 
     print("  OK: salespersons.json 中 rel_path / mid_layer / customers 均正确")
 
     # 路径拼接
-    # 张莹莹 + LLC KEMIKLKRAFT → 1订单/张莹莹/LLC KEMIKLKRAFT
-    p1 = s.build_customer_dir("张莹莹", "LLC KEMIKLKRAFT")
-    expected = os.path.join(root, "1订单", "张莹莹", "LLC KEMIKLKRAFT")
+    # 王明辉 + GlobalChem Trading LLC → 1订单/王明辉/GlobalChem Trading LLC
+    p1 = s.build_customer_dir("王明辉", "GlobalChem Trading LLC")
+    expected = os.path.join(root, "1订单", "王明辉", "GlobalChem Trading LLC")
     assert p1 == expected, f"{p1} != {expected}"
 
-    # 文天堂 + 客户A → 1订单/湖北/文天堂/客户A
-    p2 = s.build_customer_dir("文天堂", "客户A")
-    expected2 = os.path.join(root, "1订单", "湖北", "文天堂", "客户A")
+    # 赵天宇 + 客户A → 1订单/华南分公司/赵天宇/客户A
+    p2 = s.build_customer_dir("赵天宇", "客户A")
+    expected2 = os.path.join(root, "1订单", "华南分公司", "赵天宇", "客户A")
     assert p2 == expected2, f"{p2} != {expected2}"
 
-    # 解小康 + BASF → 1订单/解小康/进行中订单/BASF
-    p3 = s.build_customer_dir("解小康", "BASF Nederland")
-    expected3 = os.path.join(root, "1订单", "解小康", "进行中订单", "BASF Nederland")
+    # 李思雨 + EuroChem → 1订单/李思雨/进行中订单/EuroChem
+    p3 = s.build_customer_dir("李思雨", "EuroChem Solutions B.V.")
+    expected3 = os.path.join(root, "1订单", "李思雨", "进行中订单", "EuroChem Solutions B.V.")
     assert p3 == expected3, f"{p3} != {expected3}"
 
-    # 吴雅萍 + 客户X → 1订单/吴雅萍/1.进行订单/客户X
-    p4 = s.build_customer_dir("吴雅萍", "客户X")
-    expected4 = os.path.join(root, "1订单", "吴雅萍", "1.进行订单", "客户X")
+    # 刘雅琴 + 客户X → 1订单/刘雅琴/1.进行订单/客户X
+    p4 = s.build_customer_dir("刘雅琴", "客户X")
+    expected4 = os.path.join(root, "1订单", "刘雅琴", "1.进行订单", "客户X")
     assert p4 == expected4, f"{p4} != {expected4}"
 
     print("  OK: build_customer_dir 四种场景路径拼接全部正确")
@@ -357,23 +357,23 @@ def test_full_flow_bug1_verify():
     print(f"\n===== Bug1 端到端验证 =====")
     tmp, root, tpl_dir = setup_workspace()
     s = Storage(root)
-    # 准备业务员张莹莹 + 客户
+    # 准备业务员王明辉 + 客户
     (Path(root) / "1订单").mkdir()
-    (Path(root) / "1订单" / "张莹莹" / "LLC KEMIKLKRAFT").mkdir(parents=True)
-    s.import_scanned_salespersons(["张莹莹"], overwrite=True)
+    (Path(root) / "1订单" / "王明辉" / "GlobalChem Trading LLC").mkdir(parents=True)
+    s.import_scanned_salespersons(["王明辉"], overwrite=True)
 
     order = {
-        "order_type": "外贸", "order_no": "XS-GAP2604018NH",
-        "customer": "LLC KEMIKLKRAFT", "product_category": "戊二醛",
+        "order_type": "外贸", "order_no": "HR-EXP2604018NH",
+        "customer": "GlobalChem Trading LLC", "product_category": "环氧树脂",
         "product_info": "", "po_no": "",
-        "salesperson": "张莹莹", "needs_inspection": False,
+        "salesperson": "王明辉", "needs_inspection": False,
     }
-    customer_dir = s.build_customer_dir("张莹莹", "LLC KEMIKLKRAFT")
+    customer_dir = s.build_customer_dir("王明辉", "GlobalChem Trading LLC")
     tpl = s.load_template("standard_export.json")
     result = folder_builder.execute_build(order, tpl, customer_dir, tpl_dir)
 
     order_folder = Path(result["base_path"])
-    assert order_folder.name == "XS-GAP2604018NH", f"订单号文件夹名错误：{order_folder.name}"
+    assert order_folder.name == "HR-EXP2604018NH", f"订单号文件夹名错误：{order_folder.name}"
     assert order_folder.parent == Path(customer_dir), \
         f"订单号文件夹父目录应为客户目录，实际：{order_folder.parent}"
 
@@ -385,12 +385,12 @@ def test_full_flow_bug1_verify():
             f"{sub} 散落在客户目录下了"
 
     # 关键文件也应在订单号文件夹内
-    for f in ["PI-XS-GAP2604018NH.xlsx",
-              "CG-XS-GAP2604018NH.xlsx",
-              "文件清单-XS-GAP2604018NH.xlsx"]:
+    for f in ["PI-HR-EXP2604018NH.xlsx",
+              "CG-HR-EXP2604018NH.xlsx",
+              "文件清单-HR-EXP2604018NH.xlsx"]:
         # PI 模板可能不存在，跳过不严格校验
         pass
-    assert (order_folder / "文件清单-XS-GAP2604018NH.xlsx").is_file()
+    assert (order_folder / "文件清单-HR-EXP2604018NH.xlsx").is_file()
     print(f"  OK: 订单号文件夹 {order_folder}")
     print(f"  OK: 子文件夹均在订单号文件夹内部，客户目录下不散落")
 
@@ -402,10 +402,10 @@ def test_po_no_placeholder():
 
     # 1) build_context 包含 PO 号
     order = {
-        "order_no": "XS-PO-TEST", "customer": "ACME",
+        "order_no": "HR-PO-TEST", "customer": "ACME",
         "po_no": "PO-2026-001", "product_info": "",
         "salesperson": "张三", "order_type": "外贸",
-        "product_category": "戊二醛", "needs_inspection": False,
+        "product_category": "环氧树脂", "needs_inspection": False,
     }
     ctx = folder_builder.build_context(order)
     assert ctx["<客户PO号>"] == "PO-2026-001", f"PO号上下文错误: {ctx['<客户PO号>']}"
@@ -454,7 +454,7 @@ def test_batch_collect_po():
 
     orders = [
         {"order_type": "外贸", "order_no": "BATCH-001", "customer": "C1",
-         "po_no": "PO-B001", "product_info": "", "product_category": "戊二醛",
+         "po_no": "PO-B001", "product_info": "", "product_category": "环氧树脂",
          "salesperson": "张三", "needs_inspection": False},
         {"order_type": "外贸", "order_no": "BATCH-002", "customer": "C2",
          "po_no": "", "product_info": "", "product_category": "其他产品",
@@ -597,30 +597,30 @@ def test_end_to_end_domestic():
 
     # 搭建目录
     order_root = Path(root) / "1订单"
-    (order_root / "冷斌捷" / "1.进行订单" / "某某化工").mkdir(parents=True)
+    (order_root / "陈志远" / "1.进行订单" / "某某化工").mkdir(parents=True)
 
     # 扫描导入
-    s.import_scanned_salespersons(["冷斌捷"], overwrite=True)
-    sp = s.get_salesperson("冷斌捷")
+    s.import_scanned_salespersons(["陈志远"], overwrite=True)
+    sp = s.get_salesperson("陈志远")
     assert sp["mid_layer"] == "1.进行订单"
     assert "某某化工" in sp["customers"]
 
     # 构造订单
     order = {
-        "order_type": "内贸", "order_no": "NS-DOM001",
+        "order_type": "内贸", "order_no": "HR-DOM001",
         "customer": "某某化工", "po_no": "PO-DOM",
-        "product_info": "戊二醛 1T", "product_category": "戊二醛",
-        "salesperson": "冷斌捷", "needs_inspection": False,
+        "product_info": "环氧树脂 1T", "product_category": "环氧树脂",
+        "salesperson": "陈志远", "needs_inspection": False,
     }
-    customer_dir = s.build_customer_dir("冷斌捷", "某某化工")
-    expected_dir = os.path.join(root, "1订单", "冷斌捷", "1.进行订单", "某某化工")
+    customer_dir = s.build_customer_dir("陈志远", "某某化工")
+    expected_dir = os.path.join(root, "1订单", "陈志远", "1.进行订单", "某某化工")
     assert customer_dir == expected_dir, f"{customer_dir} != {expected_dir}"
 
     tpl = s.load_template("standard_domestic.json")
     result = folder_builder.execute_build(order, tpl, customer_dir, tpl_dir)
 
     order_folder = Path(result["base_path"])
-    assert order_folder.name == "NS-DOM001"
+    assert order_folder.name == "HR-DOM001"
     assert order_folder.parent == Path(customer_dir)
 
     # 验证内贸特有的子文件夹
@@ -690,24 +690,24 @@ def main():
     tmp, root, tpl_dir = setup_workspace()
     s = Storage(root)
 
-    # 场景1：外贸 + 戊二醛，不勾选商检
+    # 场景1：外贸 + 环氧树脂，不勾选商检
     base1, _ = test_scenario(
-        "场景1 外贸+戊二醛，不勾选商检",
+        "场景1 外贸+环氧树脂，不勾选商检",
         s, root, tpl_dir,
         order={
-            "order_type": "外贸", "order_no": "XS-GAM001",
-            "customer": "ACME", "product_category": "戊二醛",
+            "order_type": "外贸", "order_no": "HR-EXP001",
+            "customer": "ACME", "product_category": "环氧树脂",
             "product_info": "", "po_no": "", "salesperson": "张三",
             "needs_inspection": False,
         },
         expected_files=[
             # 功能 C：复制出来的空白模板文件自动带 "_对照" 后缀
-            "CG-XS-GAM001_对照.xlsx",
-            "SD/CI-XS-GAM001_对照.xlsx",
-            "SD/PL-XS-GAM001_对照.xls",
-            "货代资料/订舱托书-XS-GAM001_对照.doc",
-            "生产发货/生产通知单-XS-GAM001_对照.doc",
-            "生产发货/发货通知单-XS-GAM001_对照.docx",
+            "CG-HR-EXP001_对照.xlsx",
+            "SD/CI-HR-EXP001_对照.xlsx",
+            "SD/PL-HR-EXP001_对照.xls",
+            "货代资料/订舱托书-HR-EXP001_对照.doc",
+            "生产发货/生产通知单-HR-EXP001_对照.doc",
+            "生产发货/发货通知单-HR-EXP001_对照.docx",
         ],
     )
 
@@ -716,55 +716,55 @@ def main():
         "场景2 外贸+其他产品+勾选商检",
         s, root, tpl_dir,
         order={
-            "order_type": "外贸", "order_no": "XS-OTH001",
+            "order_type": "外贸", "order_no": "HR-OTH001",
             "customer": "BCD Ltd", "product_category": "其他产品",
             "product_info": "", "po_no": "", "salesperson": "张三",
             "needs_inspection": True,
         },
         expected_files=[
-            "CG-XS-OTH001_对照.xlsx",
-            "SD/CI-XS-OTH001_对照.xlsx",
-            "SD/PL-XS-OTH001_对照.xls",
-            "货代资料/订舱托书-XS-OTH001_对照.doc",
-            "生产发货/生产通知单-XS-OTH001_对照.xlsx",
-            "生产发货/发货通知单-XS-OTH001_对照.xlsx",
+            "CG-HR-OTH001_对照.xlsx",
+            "SD/CI-HR-OTH001_对照.xlsx",
+            "SD/PL-HR-OTH001_对照.xls",
+            "货代资料/订舱托书-HR-OTH001_对照.doc",
+            "生产发货/生产通知单-HR-OTH001_对照.xlsx",
+            "生产发货/发货通知单-HR-OTH001_对照.xlsx",
         ],
     )
 
-    # 场景3：内贸 + 戊二醛
+    # 场景3：内贸 + 环氧树脂
     base3, _ = test_scenario(
-        "场景3 内贸+戊二醛",
+        "场景3 内贸+环氧树脂",
         s, root, tpl_dir,
         order={
-            "order_type": "内贸", "order_no": "NS-GAM001",
-            "customer": "某某化工", "product_category": "戊二醛",
+            "order_type": "内贸", "order_no": "HR-DOM001",
+            "customer": "某某化工", "product_category": "环氧树脂",
             "product_info": "", "po_no": "", "salesperson": "李四",
             "needs_inspection": False,
         },
         expected_files=[
-            "生产、采购、发货/生产通知单-NS-GAM001_对照.xlsx",
-            "生产、采购、发货/发货通知单-NS-GAM001_对照.xlsx",
-            "生产、采购、发货/采购合同-NS-GAM001_对照.xlsx",
+            "生产、采购、发货/生产通知单-HR-DOM001_对照.xlsx",
+            "生产、采购、发货/发货通知单-HR-DOM001_对照.xlsx",
+            "生产、采购、发货/采购合同-HR-DOM001_对照.xlsx",
         ],
     )
 
-    # 场景4：内贸 + 其他产品（湖北天鹅无内贸模板 → 应跳过不报错）
+    # 场景4：内贸 + 其他产品（华南工厂无内贸模板 → 应跳过不报错）
     base4, res4 = test_scenario(
         "场景4 内贸+其他产品（无生产发货模板）",
         s, root, tpl_dir,
         order={
-            "order_type": "内贸", "order_no": "NS-OTH001",
+            "order_type": "内贸", "order_no": "HR-DOM-OTH001",
             "customer": "某某公司", "product_category": "其他产品",
             "product_info": "", "po_no": "", "salesperson": "李四",
             "needs_inspection": False,
         },
         expected_files=[
-            "生产、采购、发货/采购合同-NS-OTH001_对照.xlsx",  # 只有通用 CG 会被复制
+            "生产、采购、发货/采购合同-HR-DOM-OTH001_对照.xlsx",  # 只有通用 CG 会被复制
         ],
     )
     # 生产/发货通知单不应存在
     p_notify = Path(base4) / "生产、采购、发货"
-    assert not (p_notify / "生产通知单-NS-OTH001.xlsx").exists() or True
+    assert not (p_notify / "生产通知单-HR-DOM-OTH001.xlsx").exists() or True
     # 文件夹本身应该存在（空）
     assert p_notify.is_dir()
     # 应该有失败记录
@@ -774,8 +774,8 @@ def main():
 
     # 补建
     test_rebuild(s, root, tpl_dir, {
-        "order_type": "外贸", "order_no": "XS-GAM001",
-        "customer": "ACME", "product_category": "戊二醛",
+        "order_type": "外贸", "order_no": "HR-EXP001",
+        "customer": "ACME", "product_category": "环氧树脂",
         "salesperson": "张三", "needs_inspection": False,
     }, base1)
 

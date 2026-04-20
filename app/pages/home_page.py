@@ -76,7 +76,7 @@ class HomePage(QWidget):
         lbl2 = QLabel("模板文件目录：")
         lbl2.setObjectName("SectionLabel")
         self.tpl_edit = QLineEdit()
-        self.tpl_edit.setPlaceholderText("存放通用 / 外贸通用 / 宁夏 / 湖北天鹅 模板文件的目录（可选）")
+        self.tpl_edit.setPlaceholderText("存放通用 / 外贸通用 / 华北工厂 / 华南工厂 模板文件的目录（可选）")
         btn_browse_tpl = QPushButton("浏览…")
         btn_browse_tpl.clicked.connect(self._browse_tpl)
         btn_save_tpl = QPushButton("保存")
@@ -88,7 +88,7 @@ class HomePage(QWidget):
         cfg_layout.addWidget(btn_browse_tpl, 1, 2)
         cfg_layout.addWidget(btn_save_tpl, 1, 3)
 
-        tip = QLabel("提示：模板目录结构请参考 README，如：\n  通用/CG.xlsx   外贸通用/CI.xlsx   宁夏/宁夏外贸生产.doc   湖北天鹅/湖北天鹅外贸生产.xlsx")
+        tip = QLabel("提示：模板目录结构请参考 README，如：\n  通用/CG.xlsx   外贸通用/CI.xlsx   华北工厂/华北工厂外贸生产.doc   华南工厂/华南工厂外贸生产.xlsx")
         tip.setStyleSheet("color:#666666;")
         cfg_layout.addWidget(tip, 2, 1, 1, 3)
 
@@ -345,7 +345,7 @@ class HomePage(QWidget):
 
         # 订单号
         edit_order_no = QLineEdit()
-        edit_order_no.setPlaceholderText("例如 XS-NEW001NH")
+        edit_order_no.setPlaceholderText("例如 HR-NEW001NH")
         form.addRow("订单号：", edit_order_no)
 
         # 客户名称
@@ -375,7 +375,7 @@ class HomePage(QWidget):
 
         # 产品类别
         cmb_cat = QComboBox()
-        cmb_cat.addItems(["戊二醛", "其他产品"])
+        cmb_cat.addItems(["环氧树脂", "其他产品"])
         form.addRow("产品类别：", cmb_cat)
 
         btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)

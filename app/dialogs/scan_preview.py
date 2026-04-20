@@ -32,7 +32,7 @@ class ScanPreviewDialog(QDialog):
                      （客户目录 + 订单号）。如果用户修改了该路径，
                      get_target_path() 将返回修改后的完整订单路径。
         ctx: 占位符上下文字典。传入后，预览中文件名会显示替换后的真实名字
-             （例如 <订单号> → XS-TEST001NH）。为 None 时保留原始占位符。
+             （例如 <订单号> → HR-TEST001NH）。为 None 时保留原始占位符。
         """
         super().__init__(parent)
         self.setWindowTitle("创建预览")

@@ -45,29 +45,29 @@ def build_context(order: Dict[str, Any]) -> Dict[str, str]:
         "<产品信息>": order.get("product_info", ""),
         "<日期>": datetime.now().strftime("%Y%m%d"),
         "<业务员>": order.get("salesperson", ""),
-        "<SHXY编号>": order.get("shxy_no", "SHXY"),
+        "<HRXY编号>": order.get("shxy_no", "HRXY"),
     }
 
 
 # ------------------------------------------------------------------
 # 产地匹配
 # ------------------------------------------------------------------
-# product_category: "戊二醛" → 宁夏；"其他产品" → 湖北天鹅
+# product_category: "环氧树脂" → 华北工厂；"其他产品" → 华南工厂
 ORIGIN_MAP = {
-    "戊二醛": "宁夏",
-    "其他产品": "湖北天鹅",
+    "环氧树脂": "华北工厂",
+    "其他产品": "华南工厂",
 }
 
-# 宁夏、湖北天鹅的文件名扩展名约定（参考需求 §9.1）
+# 华北工厂、华南工厂的文件名扩展名约定（参考需求 §9.1）
 ORIGIN_FILE_EXT = {
-    ("宁夏", "外贸生产"): ".doc",
-    ("宁夏", "外贸发货"): ".docx",
-    ("宁夏", "内贸生产"): ".xlsx",
-    ("宁夏", "内贸发货"): ".xlsx",
-    ("湖北天鹅", "外贸生产"): ".xlsx",
-    ("湖北天鹅", "外贸发货"): ".xlsx",
-    ("湖北天鹅", "内贸生产"): ".xlsx",  # 需求中"其他产品+内贸"没有模板，但为安全起见保留
-    ("湖北天鹅", "内贸发货"): ".xlsx",
+    ("华北工厂", "外贸生产"): ".doc",
+    ("华北工厂", "外贸发货"): ".docx",
+    ("华北工厂", "内贸生产"): ".xlsx",
+    ("华北工厂", "内贸发货"): ".xlsx",
+    ("华南工厂", "外贸生产"): ".xlsx",
+    ("华南工厂", "外贸发货"): ".xlsx",
+    ("华南工厂", "内贸生产"): ".xlsx",  # 需求中"其他产品+内贸"没有模板，但为安全起见保留
+    ("华南工厂", "内贸发货"): ".xlsx",
 }
 
 
@@ -85,7 +85,7 @@ def resolve_file_template(tmpl: Optional[str], product_category: str) -> Optiona
     if not origin:
         return None  # 未知产品类别
 
-    # 形如 "[产地]外贸生产" → "宁夏/宁夏外贸生产.doc"
+    # 形如 "[产地]外贸生产" → "华北工厂/华北工厂外贸生产.doc"
     suffix = tmpl.replace("[产地]", "")  # 如 "外贸生产"
     ext = ORIGIN_FILE_EXT.get((origin, suffix))
     if not ext:

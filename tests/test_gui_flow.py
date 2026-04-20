@@ -29,14 +29,14 @@ def setup_workspace():
     tpl_dir = tmp / "模板"
     (tpl_dir / "通用").mkdir(parents=True)
     (tpl_dir / "外贸通用").mkdir(parents=True)
-    (tpl_dir / "宁夏").mkdir(parents=True)
-    (tpl_dir / "湖北天鹅").mkdir(parents=True)
+    (tpl_dir / "华北工厂").mkdir(parents=True)
+    (tpl_dir / "华南工厂").mkdir(parents=True)
     files = [
         "通用/CG.xlsx", "外贸通用/CI.xlsx", "外贸通用/PL.xls",
-        "外贸通用/托书.doc", "宁夏/宁夏外贸生产.doc",
-        "宁夏/宁夏外贸发货.docx", "宁夏/宁夏内贸生产.xlsx",
-        "宁夏/宁夏内贸发货.xlsx", "湖北天鹅/湖北天鹅外贸生产.xlsx",
-        "湖北天鹅/湖北天鹅外贸发货.xlsx",
+        "外贸通用/托书.doc", "华北工厂/华北工厂外贸生产.doc",
+        "华北工厂/华北工厂外贸发货.docx", "华北工厂/华北工厂内贸生产.xlsx",
+        "华北工厂/华北工厂内贸发货.xlsx", "华南工厂/华南工厂外贸生产.xlsx",
+        "华南工厂/华南工厂外贸发货.xlsx",
     ]
     for f in files:
         (tpl_dir / f).write_text("X", encoding="utf-8")
@@ -75,13 +75,13 @@ def main():
     sp.cmb_sales.setCurrentText("张三")
     sp.cmb_customer.setCurrentText("ACME")
     sp.cmb_order_type.setCurrentText("外贸")
-    sp.cmb_category.setCurrentText("戊二醛")
-    sp.edit_order_no.setText("XS-TEST-001")
+    sp.cmb_category.setCurrentText("环氧树脂")
+    sp.edit_order_no.setText("HR-TEST-001")
     sp.edit_customer.setText("ACME")
     # 收集
     order = sp._collect_order()
     assert order is not None
-    assert order["order_no"] == "XS-TEST-001"
+    assert order["order_no"] == "HR-TEST-001"
     print("单笔表单采集：", order)
 
     # 模板已自动匹配
@@ -93,13 +93,13 @@ def main():
     bp = win.page_batch
     bp.refresh()
     bp._add_row({
-        "order_type": "外贸", "order_no": "XS-B001", "customer": "ACME",
-        "product_info": "", "product_category": "戊二醛",
+        "order_type": "外贸", "order_no": "HR-B001", "customer": "ACME",
+        "product_info": "", "product_category": "环氧树脂",
         "needs_inspection": True,
     })
     bp._add_row({
-        "order_type": "内贸", "order_no": "NS-B002", "customer": "某某公司",
-        "product_info": "戊二醛1T", "product_category": "戊二醛",
+        "order_type": "内贸", "order_no": "HR-DOM-B002", "customer": "某某公司",
+        "product_info": "环氧树脂1T", "product_category": "环氧树脂",
         "needs_inspection": False,
     })
     bp.cmb_sales.setCurrentText("张三")
@@ -134,17 +134,17 @@ def main():
     win.storage.append_history({
         "time": "2025-01-01 10:00:00", "operator": "test",
         "salesperson": "张三", "customer": "ACME",
-        "order_no": "XS-TEST-001", "order_type": "外贸",
-        "product_category": "戊二醛", "template_name": "standard_export.json",
+        "order_no": "HR-TEST-001", "order_type": "外贸",
+        "product_category": "环氧树脂", "template_name": "standard_export.json",
         "path": "/tmp/xxx", "result": "成功",
         "created_count": 8, "skipped_count": 0, "copied_count": 6,
     })
     hp2.refresh()
     assert hp2.table.rowCount() == 1
     # 搜索
-    hp2.edit_search.setText("XS-TEST")
+    hp2.edit_search.setText("HR-TEST")
     assert hp2.table.rowCount() == 1
-    hp2.edit_search.setText("XS-NOTEXIST")
+    hp2.edit_search.setText("HR-NOTEXIST")
     assert hp2.table.rowCount() == 0
     hp2.edit_search.setText("")
 

@@ -61,7 +61,7 @@ def _build_help_html() -> str:
     <ol>
       <li>打开程序后，会看到一个输入框，旁边写着<b>"公司资料根目录"</b>。</li>
       <li>点右边的 <span class="btn">浏览…</span> 按钮，会弹出一个文件夹选择窗口。</li>
-      <li>找到「<b>华为云盘下载（金泓公司云盘）</b>」这个文件夹，点一下选中它。</li>
+      <li>找到「<b>公司共享网盘（华瑞公司云盘）</b>」这个文件夹，点一下选中它。</li>
       <li>点 <span class="btn">选择文件夹</span>，回到程序后点 <span class="btn">保存</span>。</li>
       <li>看到弹窗提示"<b>根目录已保存</b>"，就说明设置成功了。</li>
     </ol>
@@ -82,10 +82,10 @@ def _build_help_html() -> str:
       <li>点首页的 <span class="btn">🔍 扫描导入业务员</span> 按钮。</li>
       <li>程序会自动读取 <code>1订单/</code> 文件夹里的所有子文件夹，
           并弹出一个勾选窗口。</li>
-      <li>把<b>属于业务员</b>的文件夹打勾 ✓（例如 张莹莹、解小康、冷斌捷）。</li>
-      <li>不是业务员的<b>不要勾</b>（例如"船级证-金山IBC"这种资料文件夹）。</li>
-      <li>如果有像「湖北」这样的<b>分公司</b>文件夹，点开它，把里面的
-          业务员（文天堂、张子航）打勾。</li>
+      <li>把<b>属于业务员</b>的文件夹打勾 ✓（例如 王明辉、李思雨、陈志远）。</li>
+      <li>不是业务员的<b>不要勾</b>（例如"技术认证-滨海仓库"这种资料文件夹）。</li>
+      <li>如果有像「华南分公司」这样的<b>分公司</b>文件夹，点开它，把里面的
+          业务员（赵天宇、周子涵）打勾。</li>
       <li>勾选完成后点 <span class="btn">确认导入</span>。</li>
     </ol>
     <div class="tip">导入成功后，以后创建订单时就可以直接从下拉框里选业务员和客户了，
@@ -103,12 +103,12 @@ def _build_help_html() -> str:
           <li><b>客户</b>（会根据业务员自动列出对应客户）</li>
           <li><b>订单类型</b>：外贸 / 内贸</li>
           <li>这时<b>模板</b>下拉框会自动匹配好，一般不用改</li>
-          <li><b>产品类别</b>：戊二醛 / 其他产品</li>
+          <li><b>产品类别</b>：环氧树脂 / 其他产品</li>
         </ul>
       </li>
       <li>在<b>下方订单信息</b>区填写：
         <ul>
-          <li><b>订单号</b>：必填（例如 <code>XS-GAP2604018NH</code>）</li>
+          <li><b>订单号</b>：必填（例如 <code>HR-EXP2604018NH</code>）</li>
           <li><b>客户名称</b>：会根据上方选择自动填好</li>
           <li><b>产品信息</b>、<b>客户PO号</b>：选填</li>
         </ul>
@@ -147,10 +147,10 @@ def _build_help_html() -> str:
       <li><b>按模板命名规则给剩下的文件重命名</b></li>
     </ul>
     <div class="tip"><b>举例：</b>模板定义 SD 文件夹下有 <code>CI-&lt;订单号&gt;.xlsx</code>，
-    新订单号 <code>XS-NEW001NH</code>。文件夹里有：<br>
-    · <code>CI-XS-NEW001NH_对照.xlsx</code>（空白模板）→ 删除<br>
-    · <code>CI-XS-OLD001NH.xlsx</code>（上一票文件，已改好）→ 程序识别为 CI 文件，
-    重命名为 <code>CI-XS-NEW001NH.xlsx</code></div>
+    新订单号 <code>HR-NEW001NH</code>。文件夹里有：<br>
+    · <code>CI-HR-NEW001NH_对照.xlsx</code>（空白模板）→ 删除<br>
+    · <code>CI-HR-OLD001NH.xlsx</code>（上一票文件，已改好）→ 程序识别为 CI 文件，
+    重命名为 <code>CI-HR-NEW001NH.xlsx</code></div>
     <div class="warn"><b>重要：</b>执行前会逐项展示确认，不会不经你同意就操作。</div>
 
     <h3>目标路径是如何构造的？</h3>
@@ -158,12 +158,12 @@ def _build_help_html() -> str:
     <pre>&lt;根目录&gt;/1订单/&lt;业务员&gt;/[&lt;中间层&gt;/]&lt;客户名&gt;/&lt;订单号&gt;/</pre>
     <p>举例：</p>
     <ul>
-      <li>张莹莹 + LLC KEMIKLKRAFT + XS-001
-          → <code>根目录/1订单/张莹莹/LLC KEMIKLKRAFT/XS-001/</code></li>
-      <li>文天堂（湖北分公司）+ 客户A + XS-002
-          → <code>根目录/1订单/湖北/文天堂/客户A/XS-002/</code></li>
-      <li>解小康（中间层"进行中订单"）+ BASF + XS-003
-          → <code>根目录/1订单/解小康/进行中订单/BASF/XS-003/</code></li>
+      <li>王明辉 + GlobalChem Trading LLC + HR-001
+          → <code>根目录/1订单/王明辉/GlobalChem Trading LLC/HR-001/</code></li>
+      <li>赵天宇（华南分公司）+ 客户A + HR-002
+          → <code>根目录/1订单/华南分公司/赵天宇/客户A/HR-002/</code></li>
+      <li>李思雨（中间层"进行中订单"）+ EuroChem + HR-003
+          → <code>根目录/1订单/李思雨/进行中订单/EuroChem/HR-003/</code></li>
     </ul>
     """
 
@@ -177,10 +177,10 @@ def _build_help_html() -> str:
         <table>
           <tr><th>列名</th><th>说明</th></tr>
           <tr><td>订单类型</td><td>外贸 / 内贸</td></tr>
-          <tr><td>订单号</td><td>例如 XS-GAP2604018NH</td></tr>
+          <tr><td>订单号</td><td>例如 HR-EXP2604018NH</td></tr>
           <tr><td>客户名称</td><td>客户全称</td></tr>
           <tr><td>产品信息</td><td>选填</td></tr>
-          <tr><td>产品类别</td><td>戊二醛 / 其他产品</td></tr>
+          <tr><td>产品类别</td><td>环氧树脂 / 其他产品</td></tr>
           <tr><td>是否需要商检</td><td>是 / 否</td></tr>
           <tr><td>业务员</td><td>可选。不填时将使用页面顶部的业务员</td></tr>
         </table>
@@ -219,7 +219,7 @@ def _build_help_html() -> str:
     <div class="warn"><b>注意：</b>公司标准模板<b>不能删除</b>，只能在其基础上另存新模板。</div>
 
     <h3>自定义文件命名规则</h3>
-    <p>程序创建订单时，会自动给每个文件取名（比如 <code>CI-XS-GAM2508056NH.xlsx</code>）。
+    <p>程序创建订单时，会自动给每个文件取名（比如 <code>CI-HR-EXP2508056NH.xlsx</code>）。
     如果你想改变某个文件的命名方式，可以按以下步骤操作：</p>
 
     <h3>方法一：用常用格式快速命名（最简单，推荐）</h3>
@@ -237,7 +237,7 @@ def _build_help_html() -> str:
       <li>文件名就自动变成了 <code>CI-&lt;订单号&gt;.xlsx</code>。</li>
       <li>最后点 <span class="btn">✔ 应用修改到当前文件夹</span>，再点 <span class="btn">保存</span>。</li>
       <li>以后创建订单时，程序会自动把 <code>&lt;订单号&gt;</code> 替换成真实的订单号，
-          变成 <code>CI-XS-GAM2508056NH.xlsx</code>。</li>
+          变成 <code>CI-HR-EXP2508056NH.xlsx</code>。</li>
     </ol>
     <div class="tip"><b>总结：</b>选格式 → 输前缀（两个字母）→ 搞定。全程不到 5 秒。</div>
 
@@ -261,7 +261,7 @@ def _build_help_html() -> str:
           完整结果就是 <code>发票-&lt;订单号&gt;-&lt;客户名称&gt;.xlsx</code>。</li>
       <li>点 <span class="btn">✔ 应用修改到当前文件夹</span>，再点 <span class="btn">保存</span>。</li>
       <li>以后创建订单时就会自动变成
-          <code>发票-XS-GAM2508056NH-BAKER HUGHES.xlsx</code>。</li>
+          <code>发票-HR-EXP2508056NH-Atlantic Industries Inc..xlsx</code>。</li>
     </ol>
     <div class="note"><b>什么是占位符？</b>就是用尖括号包起来的变量名，比如 <code>&lt;订单号&gt;</code>。
     你不需要记住它们怎么写，<b>直接点按钮就行</b>，程序会自动帮你插入。
@@ -275,13 +275,13 @@ def _build_help_html() -> str:
 
     <table>
       <tr><th>占位符</th><th>会被替换成什么</th><th>替换后的例子</th></tr>
-      <tr><td><code>&lt;订单号&gt;</code></td><td>你填的订单号</td><td>XS-GAM2508056NH</td></tr>
-      <tr><td><code>&lt;客户名称&gt;</code></td><td>你选的客户名称</td><td>BAKER HUGHES</td></tr>
+      <tr><td><code>&lt;订单号&gt;</code></td><td>你填的订单号</td><td>HR-EXP2508056NH</td></tr>
+      <tr><td><code>&lt;客户名称&gt;</code></td><td>你选的客户名称</td><td>Atlantic Industries Inc.</td></tr>
       <tr><td><code>&lt;客户PO号&gt;</code></td><td>客户的PO号</td><td>PO-12345</td></tr>
-      <tr><td><code>&lt;产品信息&gt;</code></td><td>产品信息</td><td>戊二醛 200KG</td></tr>
+      <tr><td><code>&lt;产品信息&gt;</code></td><td>产品信息</td><td>环氧树脂 200KG</td></tr>
       <tr><td><code>&lt;日期&gt;</code></td><td>创建当天日期</td><td>20250821</td></tr>
       <tr><td><code>&lt;业务员&gt;</code></td><td>你选的业务员名字</td><td>张三</td></tr>
-      <tr><td><code>&lt;SHXY编号&gt;</code></td><td>备用编号</td><td>SHXY</td></tr>
+      <tr><td><code>&lt;HRXY编号&gt;</code></td><td>备用编号</td><td>HRXY</td></tr>
     </table>
 
     <h3>选择模板文件（新增模板不用改代码）</h3>
@@ -320,21 +320,21 @@ def _build_help_html() -> str:
 
     <table>
       <tr><th>占位符</th><th>含义</th><th>示例</th></tr>
-      <tr><td><code>&lt;订单号&gt;</code></td><td>你填写的订单号</td><td>XS-GAP2604018NH</td></tr>
-      <tr><td><code>&lt;客户名称&gt;</code></td><td>你选择的客户名称</td><td>LLC KEMIKLKRAFT</td></tr>
+      <tr><td><code>&lt;订单号&gt;</code></td><td>你填写的订单号</td><td>HR-EXP2604018NH</td></tr>
+      <tr><td><code>&lt;客户名称&gt;</code></td><td>你选择的客户名称</td><td>GlobalChem Trading LLC</td></tr>
       <tr><td><code>&lt;客户PO号&gt;</code></td><td>客户的采购单号（如有填）</td><td>PO-2026-001</td></tr>
-      <tr><td><code>&lt;产品信息&gt;</code></td><td>产品信息（如有填）</td><td>戊二醛 200KG</td></tr>
-      <tr><td><code>&lt;业务员&gt;</code></td><td>当前选择的业务员姓名</td><td>张莹莹</td></tr>
+      <tr><td><code>&lt;产品信息&gt;</code></td><td>产品信息（如有填）</td><td>环氧树脂 200KG</td></tr>
+      <tr><td><code>&lt;业务员&gt;</code></td><td>当前选择的业务员姓名</td><td>王明辉</td></tr>
       <tr><td><code>&lt;日期&gt;</code></td><td>创建当天的日期（YYYYMMDD）</td><td>20260419</td></tr>
     </table>
 
     <p>例如模板写 <code>CI-&lt;订单号&gt;.xlsx</code>，实际创建时会变成
-    <code>CI-XS-GAP2604018NH.xlsx</code>。</p>
+    <code>CI-HR-EXP2604018NH.xlsx</code>。</p>
 
     <div class="tip">模板中还有一个特殊的 <code>[产地]</code> 标记，会根据
     "产品类别"自动替换：<br/>
-    &nbsp;&nbsp;• 戊二醛 &rarr; 宁夏<br/>
-    &nbsp;&nbsp;• 其他产品 &rarr; 湖北天鹅</div>
+    &nbsp;&nbsp;• 环氧树脂 &rarr; 华北工厂<br/>
+    &nbsp;&nbsp;• 其他产品 &rarr; 华南工厂</div>
     """
 
     faq = """

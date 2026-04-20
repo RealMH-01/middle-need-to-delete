@@ -57,7 +57,7 @@ STANDARD_EXPORT = {
                 {"filename": "收款明细单.pdf", "source": "货代提供", "file_template": None},
                 {"filename": "投保预览件.pdf", "source": "保险公司", "file_template": None},
                 {"filename": "装箱单(码头联).doc", "source": "货代提供", "file_template": None},
-                {"filename": "<SHXY编号>资料.rar", "source": "货代提供", "file_template": None}
+                {"filename": "<HRXY编号>资料.rar", "source": "货代提供", "file_template": None}
             ]
         },
         {

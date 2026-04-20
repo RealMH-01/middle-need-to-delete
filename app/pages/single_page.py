@@ -95,7 +95,7 @@ class SinglePage(QWidget):
 
         id_layout.addWidget(QLabel("产品类别："), 1, 4)
         self.cmb_category = QComboBox()
-        self.cmb_category.addItems(["戊二醛", "其他产品"])
+        self.cmb_category.addItems(["环氧树脂", "其他产品"])
         id_layout.addWidget(self.cmb_category, 1, 5)
 
         btn_preview = QPushButton("预览模板")
@@ -113,7 +113,7 @@ class SinglePage(QWidget):
 
         form.addWidget(QLabel("订单号*："), 0, 0)
         self.edit_order_no = QLineEdit()
-        self.edit_order_no.setPlaceholderText("例如 XS-GAM2508056NH")
+        self.edit_order_no.setPlaceholderText("例如 HR-EXP2508056NH")
         form.addWidget(self.edit_order_no, 0, 1, 1, 3)
 
         form.addWidget(QLabel("客户名称*："), 1, 0)
@@ -447,7 +447,7 @@ class SinglePage(QWidget):
                 template=self._current_template,
                 ctx=ctx or folder_builder.build_context(order),
                 parent=dlg,
-                product_category=order.get("product_category", "戊二醛"),
+                product_category=order.get("product_category", "环氧树脂"),
                 needs_inspection=bool(order.get("needs_inspection", False)),
             ).exec_()
         btn_cleanup.clicked.connect(_open_cleanup)
@@ -481,11 +481,11 @@ class SinglePage(QWidget):
             "  <产品信息>  —— 产品信息（如有）\n"
             "  <业务员>    —— 当前选择的业务员姓名\n"
             "  <日期>      —— 创建当天日期 YYYYMMDD\n"
-            "  <SHXY编号>  —— 自动占位，需要时手动修改\n\n"
+            "  <HRXY编号>  —— 自动占位，需要时手动修改\n\n"
             "在【模板管理】中可以自由编辑每个文件的 filename 字段，\n"
             "例如：CI-<订单号>-<客户名称>.xlsx\n\n"
             "file_template 中的 [产地] 标记会根据「产品类别」自动替换：\n"
-            "  • 戊二醛   → 宁夏\n"
-            "  • 其他产品 → 湖北天鹅"
+            "  • 环氧树脂   → 华北工厂\n"
+            "  • 其他产品 → 华南工厂"
         )
         QMessageBox.information(self, "命名变量说明", msg)

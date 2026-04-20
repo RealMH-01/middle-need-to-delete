@@ -177,8 +177,8 @@ class BatchPage(QWidget):
 
         # 产品类别
         cmb_cat = QComboBox()
-        cmb_cat.addItems(["戊二醛", "其他产品"])
-        if data and data.get("product_category") in ("戊二醛", "其他产品"):
+        cmb_cat.addItems(["环氧树脂", "其他产品"])
+        if data and data.get("product_category") in ("环氧树脂", "其他产品"):
             cmb_cat.setCurrentText(data["product_category"])
         self.table.setCellWidget(r, 6, cmb_cat)
 
@@ -238,10 +238,10 @@ class BatchPage(QWidget):
             cell.fill = PatternFill("solid", fgColor="2196F3")
             cell.alignment = Alignment(horizontal="center", vertical="center")
         # 示例（业务员列为空时，使用页面顶部选择的业务员）
-        ws.append(["外贸", "XS-GAM2508056NH", "ACME CO., LTD.", "戊二醛 200KG",
-                   "PO-2026-001", "戊二醛", "是", "张三"])
-        ws.append(["内贸", "NS-GAM2508057", "某某化工", "戊二醛 1T",
-                   "", "戊二醛", "否", ""])
+        ws.append(["外贸", "HR-EXP2508056NH", "ACME CO., LTD.", "环氧树脂 200KG",
+                   "PO-2026-001", "环氧树脂", "是", "张三"])
+        ws.append(["内贸", "HR-DOM2508057", "某某化工", "环氧树脂 1T",
+                   "", "环氧树脂", "否", ""])
         widths = [12, 22, 24, 28, 18, 12, 14, 12]
         from openpyxl.utils import get_column_letter
         for i, w in enumerate(widths, start=1):
@@ -287,11 +287,11 @@ class BatchPage(QWidget):
                     "customer": (str(r[i_cust]).strip() if i_cust >= 0 and r[i_cust] else ""),
                     "product_info": (str(r[i_prod]).strip() if i_prod >= 0 and r[i_prod] else ""),
                     "po_no": (str(r[i_po]).strip() if i_po >= 0 and r[i_po] else ""),
-                    "product_category": (str(r[i_cat]).strip() if i_cat >= 0 and r[i_cat] else "戊二醛"),
+                    "product_category": (str(r[i_cat]).strip() if i_cat >= 0 and r[i_cat] else "环氧树脂"),
                     "salesperson": (str(r[i_sp]).strip() if i_sp >= 0 and r[i_sp] else ""),
                 }
-                if data["product_category"] not in ("戊二醛", "其他产品"):
-                    data["product_category"] = "戊二醛"
+                if data["product_category"] not in ("环氧树脂", "其他产品"):
+                    data["product_category"] = "环氧树脂"
                 if data["order_type"] not in ("外贸", "内贸"):
                     data["order_type"] = "外贸"
                 insp_raw = str(r[i_insp]).strip() if i_insp >= 0 and r[i_insp] is not None else ""

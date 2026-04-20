@@ -47,10 +47,10 @@ def _extract_keyword_prefix(filled_name: str) -> str:
 
     规则：取文件名（不含扩展名）的第一个 "-" 之前的部分。
     例如：
-      - "CI-XS-NEW001NH.xlsx"         → "CI"
-      - "发货通知单-XS-NEW001NH.doc"  → "发货通知单"
-      - "发票-XS-NEW001NH-BAKER.xlsx" → "发票"
-      - "BL-XS-NEW001NH.pdf"          → "BL"
+      - "CI-HR-NEW001NH.xlsx"         → "CI"
+      - "发货通知单-HR-NEW001NH.doc"  → "发货通知单"
+      - "发票-HR-NEW001NH-BAKER.xlsx" → "发票"
+      - "BL-HR-NEW001NH.pdf"          → "BL"
       - "贴唛图.jpg"（无订单号占位符） → "贴唛图"
     """
     stem = os.path.splitext(os.path.basename(filled_name))[0]
@@ -257,7 +257,7 @@ class FolderCleanupDialog(QDialog):
     def __init__(self, order_folder_path: str, order_no: str,
                  template: Dict[str, Any], ctx: Dict[str, str],
                  parent=None,
-                 product_category: str = "戊二醛",
+                 product_category: str = "环氧树脂",
                  needs_inspection: bool = False):
         super().__init__(parent)
         self.setWindowTitle(f"整理订单文件夹 - {order_no}")
