@@ -750,6 +750,22 @@ class SetupWizard(QDialog):
                 )
                 return False
 
+        # ★ Bug 9 修复：用户明确选了"需要配置"但一条都没填，
+        # 归为缺省跳过会产生困惑（下游产品类别下拉框会被隐藏）。
+        # 要求用户显式确认是跳过还是返回填写。
+        if not origin_map:
+            ret = QMessageBox.question(
+                self, "未填写任何产品类别",
+                "你选择了「需要配置」，但还没有填写任何产品类别。\n\n"
+                "· 点「是」：跳过产品类别配置（以后可在高级设置中添加）\n"
+                "· 点「否」：返回填写",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
+            )
+            if ret != QMessageBox.Yes:
+                return False
+            # 用户选了"是"，等价于跳过（origin_map 保持为空）
+
         self._origin_map = origin_map
 
         # 根据工厂名自动生成 origin_file_ext
@@ -802,10 +818,11 @@ class SetupWizard(QDialog):
         self.lbl_empty.setWordWrap(True)
         self.lbl_empty.setStyleSheet(_TIP_YELLOW_QSS)
 
-        # 底部小提示
+        # 底部小提示（Bug 19：明确告知用户“不是人名的文件夹请不要勾选”）
         self.lbl_pick_tip = QLabel(
-            "✅ 勾选的文件夹会被导入为业务员，它们下面的子文件夹会被导入为客户。"
-            "不确定的可以先全部勾选，以后再调整。"
+            "✅ 勾选的文件夹会被导入为业务员，它们下面的子文件夹会被导入为客户。\n"
+            "💡 如果某个文件夹是分公司/区域名（不是人名），请不要勾选它，"
+            "而是展开它，只勾选里面真正是业务员的子文件夹。"
         )
         self.lbl_pick_tip.setWordWrap(True)
         self.lbl_pick_tip.setStyleSheet(
@@ -878,23 +895,30 @@ class SetupWizard(QDialog):
         return True
 
     def _collect_step3(self) -> bool:
-        """收集勾选的业务员相对路径。"""
+        """收集勾选的业务员相对路径。
+
+        Bug 19 修复：如果一级节点被勾选，表示用户把该文件夹当作
+        业务员导入，就跳过它的所有子级（避免分公司名和分公司下的
+        人名同时被导入，造成重复）。只有一级未勾选时，才展开
+        去看子级——此时一级被视为分公司/区域，子级才是真正的业务员。
+        """
         paths: List[str] = []
-        # 遍历树
         root = self.tree_sp.invisibleRootItem()
         for i in range(root.childCount()):
             node = root.child(i)
             if node.checkState(0) == Qt.Checked:
+                # 一级被勾选 → 当作业务员，跳过子级，避免重复导入
                 rel = node.data(0, Qt.UserRole)
                 if rel:
                     paths.append(rel)
-            # 二级：如果单独勾了二级
-            for j in range(node.childCount()):
-                child = node.child(j)
-                if child.checkState(0) == Qt.Checked:
-                    rel = child.data(0, Qt.UserRole)
-                    if rel:
-                        paths.append(rel)
+            else:
+                # 一级未勾选 → 可能是分公司/区域，看子级
+                for j in range(node.childCount()):
+                    child = node.child(j)
+                    if child.checkState(0) == Qt.Checked:
+                        rel = child.data(0, Qt.UserRole)
+                        if rel:
+                            paths.append(rel)
         # 去重
         seen = set()
         uniq: List[str] = []
@@ -943,8 +967,13 @@ class SetupWizard(QDialog):
         idx = self.stack.currentIndex()
         if idx <= 0:
             return
-        # 从第三步返回第二步时，把"跳过/配置"按钮恢复可点
+        # ★ Bug 10 修复：从第四步（idx=3）返回第三步（idx=2）时，
+        # 完整重置第三步的交互状态：隐藏配置区、置 _step3_enabled=False、
+        # 致 "需要/跳过" 两个大按钮可再次点击。tbl_origin 中的内容
+        # 不会因为 setVisible(False) 而丢失，用户重新点"需要配置"后还能看到。
         if idx == 3:
+            self._step3_enabled = False
+            self._step2_config.setVisible(False)
             self.btn_need_step2.setEnabled(True)
             self.btn_skip_step2.setEnabled(True)
         self._goto_step(idx - 1)

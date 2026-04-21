@@ -184,9 +184,9 @@ def main():
 
     # 预览（不会弹框）
     bp._preview_all()
-    # 状态列：加入「客户PO号」列后，状态列从 7 移到 8
-    status1 = bp.table.item(0, 8).text()
-    status2 = bp.table.item(1, 8).text()
+    # 状态列：Bug 25 新增"业务员"列后，状态列从 8 移到 9
+    status1 = bp.table.item(0, 9).text()
+    status2 = bp.table.item(1, 9).text()
     print(f"预览状态：行1={status1}  行2={status2}")
     assert "待创建" in status1
 

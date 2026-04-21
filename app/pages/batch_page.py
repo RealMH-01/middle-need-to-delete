@@ -19,7 +19,7 @@ from datetime import datetime
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QBrush, QColor
 from PyQt5.QtWidgets import (
-    QCheckBox, QFileDialog, QGridLayout, QGroupBox, QHBoxLayout,
+    QCheckBox, QComboBox, QFileDialog, QGridLayout, QGroupBox, QHBoxLayout,
     QHeaderView, QLabel, QLineEdit, QMessageBox, QPushButton, QSpinBox,
     QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget
 )
@@ -29,7 +29,11 @@ from ..style import COLOR_SECONDARY
 from ..widgets import StyledComboBox
 
 
-HEADERS = ["订单类型", "订单号", "客户名称", "产品信息", "客户PO号", "产品类别", "是否商检", "状态"]
+# Bug 25 修复：表格新增「业务员」列，让行级业务员可见可编辑。
+# 列索引（含开头的"序号"列偏移 +1）：
+#   0 序号，1 订单类型，2 订单号，3 客户名称，4 产品信息，
+#   5 客户PO号，6 产品类别，7 是否商检，8 业务员，9 状态
+HEADERS = ["订单类型", "订单号", "客户名称", "产品信息", "客户PO号", "产品类别", "是否商检", "业务员", "状态"]
 
 # 黄色警告背景（异常业务员行高亮用）
 _WARN_BG = QColor(COLOR_SECONDARY)  # #FFD93D
@@ -82,6 +86,10 @@ class BatchPage(QWidget):
         id_layout.addWidget(QLabel("客户（可留空，使用每行的客户名称）："), 0, 2)
         self.cmb_customer = StyledComboBox(searchable=True)
         self.cmb_customer.setMinimumWidth(200)
+        # ★ Bug 7 修复：批量导入场景允许输入不在列表中的新客户名。
+        # StyledComboBox._setup_searchable() 默认设为 NoInsert，这里显式改回
+        # InsertAtBottom，保证用户手输的客户名失焦后不会被丢弃。
+        self.cmb_customer.setInsertPolicy(QComboBox.InsertAtBottom)
         id_layout.addWidget(self.cmb_customer, 0, 3)
         tip = QLabel(
             "提示：批量导入时，模板按「订单类型 + 业务员 + 客户」自动匹配；"
@@ -135,7 +143,8 @@ class BatchPage(QWidget):
         self.table.setHorizontalHeaderLabels(all_headers)
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
         # 列宽：序号 50, 订单类型 80, 订单号 180, 客户名称 180, 产品信息 160,
-        #      客户PO号 140, 产品类别 100, 是否商检 80, 状态 220
+        #      客户PO号 140, 产品类别 100, 是否商检 80, 业务员 120, 状态 220
+        # Bug 25：状态列从索引 8 移动到索引 9，新增"业务员"列索引 8。
         self.table.setColumnWidth(0, 50)
         self.table.setColumnWidth(1, 80)
         self.table.setColumnWidth(2, 180)
@@ -144,7 +153,8 @@ class BatchPage(QWidget):
         self.table.setColumnWidth(5, 140)
         self.table.setColumnWidth(6, 100)
         self.table.setColumnWidth(7, 80)
-        self.table.setColumnWidth(8, 220)
+        self.table.setColumnWidth(8, 120)   # ★ 新增：业务员
+        self.table.setColumnWidth(9, 220)   # 状态（原索引 8 → 9）
         root.addWidget(self.table, 1)
 
         # ----- 执行 -----
@@ -214,11 +224,9 @@ class BatchPage(QWidget):
             cmb_type.setCurrentText(data["order_type"])
         self.table.setCellWidget(r, 1, cmb_type)
 
-        # 订单号（per-row 业务员存入该单元格的 UserRole，供 _collect_rows 使用）
-        no_item = QTableWidgetItem(data.get("order_no", "") if data else "")
-        per_row_sp = (data.get("salesperson") or "").strip() if data else ""
-        no_item.setData(Qt.UserRole, per_row_sp)
-        self.table.setItem(r, 2, no_item)
+        # 订单号（Bug 25：不再将 per_row_sp 存入 UserRole，改到新的"业务员"列 8）
+        self.table.setItem(
+            r, 2, QTableWidgetItem(data.get("order_no", "") if data else ""))
         # 客户
         self.table.setItem(r, 3, QTableWidgetItem(data.get("customer", "") if data else ""))
         # 产品信息
@@ -248,8 +256,12 @@ class BatchPage(QWidget):
             chk.setChecked(True)
         self.table.setCellWidget(r, 7, w)
 
-        # 状态
-        self.table.setItem(r, 8, QTableWidgetItem(""))
+        # ★ Bug 25：业务员（列 8）—— 普通可编辑单元格，行级业务员可见可改
+        per_row_sp = (data.get("salesperson") or "").strip() if data else ""
+        self.table.setItem(r, 8, QTableWidgetItem(per_row_sp))
+
+        # 状态（Bug 25：原列 8 → 列 9）
+        self.table.setItem(r, 9, QTableWidgetItem(""))
 
         self._renumber()
 
@@ -419,7 +431,8 @@ class BatchPage(QWidget):
             it = QTableWidgetItem(status_text)
             it.setBackground(QBrush(_WARN_BG))
             it.setForeground(QBrush(_WARN_FG))
-            self.table.setItem(row, 8, it)
+            # Bug 25：状态列索引 8 → 9
+            self.table.setItem(row, 9, it)
 
     # ============== 采集 ==============
     def _collect_rows(self):
@@ -438,14 +451,10 @@ class BatchPage(QWidget):
             )
             return []
 
-        # Bug 12 修复：同样对"共用客户"做阻断式校验（空串合法）。
+        # Bug 7 修复：批量导入场景允许输入不在列表中的新客户名，
+        # 不能凭 findText 找不到就阻断流程（原 Bug 12 的阻断式校验放宽）。
+        # 直接取用户输入即可，后续会通过模板匹配 / build_customer_dir 走正常路径。
         common_customer = self.cmb_customer.currentText().strip()
-        if common_customer and self.cmb_customer.findText(common_customer) < 0:
-            QMessageBox.warning(
-                self, "提示",
-                f"客户「{common_customer}」不在列表中，请从下拉列表中选择。"
-            )
-            return []
 
         # 产品类别列是否可见？不可见时统一返回空串
         cat_col_hidden = self.table.isColumnHidden(6)
@@ -453,7 +462,9 @@ class BatchPage(QWidget):
             order_type = self.table.cellWidget(r, 1).currentText()
             no_item = self.table.item(r, 2)
             order_no = no_item.text().strip() if no_item else ""
-            per_row_sp = (no_item.data(Qt.UserRole) if no_item else "") or ""
+            # Bug 25：per_row_sp 从新"业务员"列（列 8）读取，不再用 UserRole
+            sp_item = self.table.item(r, 8)
+            per_row_sp = (sp_item.text().strip() if sp_item else "")
             customer = self.table.item(r, 3).text().strip() if self.table.item(r, 3) else ""
             product_info = self.table.item(r, 4).text().strip() if self.table.item(r, 4) else ""
             po_no = self.table.item(r, 5).text().strip() if self.table.item(r, 5) else ""
@@ -491,7 +502,8 @@ class BatchPage(QWidget):
     def _set_status(self, row, text, color="#333"):
         it = QTableWidgetItem(text)
         it.setForeground(QBrush(QColor(color)))
-        self.table.setItem(row, 8, it)
+        # Bug 25：状态列索引 8 → 9
+        self.table.setItem(row, 9, it)
 
     # ============== 预览 & 执行 ==============
     def _preview_all(self):
