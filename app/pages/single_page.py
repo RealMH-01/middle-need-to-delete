@@ -456,64 +456,74 @@ class SinglePage(QWidget):
         if not order:
             return
 
-        # 目标路径：<根目录>/1订单/<业务员rel_path>/[<mid_layer>/]<客户名>/
-        base_path = self.storage.build_customer_dir(
-            order["salesperson"], order["customer"])
-        if not base_path:
-            QMessageBox.warning(self, "提示", "未能构造目标路径，请先设置根目录")
-            return
+        # 加固 2：整个扫描→预览→执行→写历史→弹结果的主流程涉及路径
+        # 拼接、模板展开、文件复制、JSON 写入等多步操作。任何一步的未知
+        # 异常都不应让用户看到裸的 traceback；统一转成友好错误提示。
+        try:
+            # 目标路径：<根目录>/1订单/<业务员rel_path>/[<mid_layer>/]<客户名>/
+            base_path = self.storage.build_customer_dir(
+                order["salesperson"], order["customer"])
+            if not base_path:
+                QMessageBox.warning(self, "提示", "未能构造目标路径，请先设置根目录")
+                return
 
-        # 展开
-        ctx = folder_builder.build_context(order)
-        template_folders = folder_builder.flatten_template_folders(
-            self._current_template, base_path, ctx, order["needs_inspection"]
-        )
-        template_folders, extras = folder_builder.compare_with_existing(
-            base_path, template_folders)
-
-        # 预览对话框展示的是"订单号文件夹"路径（包含订单号），
-        # 但允许用户修改。修改后会被视为新的"客户目录"基路径。
-        order_folder_preview = os.path.join(base_path, order["order_no"])
-        dlg = ScanPreviewDialog(order_folder_preview, template_folders, extras,
-                                parent=self, ctx=ctx)
-        if dlg.exec_() != dlg.Accepted:
-            return
-        final_order_folder = dlg.get_target_path() or order_folder_preview
-
-        # 如果用户修改了路径，需重新展开&对比
-        if final_order_folder != order_folder_preview:
-            # 将"订单号文件夹"路径还原为"客户目录"
-            base_path = os.path.dirname(final_order_folder.rstrip("/\\"))
+            # 展开
+            ctx = folder_builder.build_context(order)
             template_folders = folder_builder.flatten_template_folders(
                 self._current_template, base_path, ctx, order["needs_inspection"]
             )
             template_folders, extras = folder_builder.compare_with_existing(
                 base_path, template_folders)
 
-        # 执行
-        cfg = self.storage.load_config()
-        result = folder_builder.execute_build(
-            order=order,
-            template=self._current_template,
-            base_path=base_path,
-            template_files_dir=cfg.get("template_files_dir") or None,
-            origin_map=cfg.get("origin_map") or {},
-            origin_file_ext=cfg.get("origin_file_ext") or {},
-        )
+            # 预览对话框展示的是"订单号文件夹"路径（包含订单号），
+            # 但允许用户修改。修改后会被视为新的"客户目录"基路径。
+            order_folder_preview = os.path.join(base_path, order["order_no"])
+            dlg = ScanPreviewDialog(order_folder_preview, template_folders, extras,
+                                    parent=self, ctx=ctx)
+            if dlg.exec_() != dlg.Accepted:
+                return
+            final_order_folder = dlg.get_target_path() or order_folder_preview
 
-        # 保存"上次选择"
-        self.storage.update_config(
-            last_salesperson=order["salesperson"],
-            last_customer=order["customer"],
-            last_order_type=order["order_type"],
-            last_product_category=order["product_category"],
-        )
+            # 如果用户修改了路径，需重新展开&对比
+            if final_order_folder != order_folder_preview:
+                # 将"订单号文件夹"路径还原为"客户目录"
+                base_path = os.path.dirname(final_order_folder.rstrip("/\\"))
+                template_folders = folder_builder.flatten_template_folders(
+                    self._current_template, base_path, ctx, order["needs_inspection"]
+                )
+                template_folders, extras = folder_builder.compare_with_existing(
+                    base_path, template_folders)
 
-        # 写历史
-        self._append_history(order, result)
+            # 执行
+            cfg = self.storage.load_config()
+            result = folder_builder.execute_build(
+                order=order,
+                template=self._current_template,
+                base_path=base_path,
+                template_files_dir=cfg.get("template_files_dir") or None,
+                origin_map=cfg.get("origin_map") or {},
+                origin_file_ext=cfg.get("origin_file_ext") or {},
+            )
 
-        # 展示结果（使用订单号文件夹路径作为"打开"入口）
-        self._show_result(order, result["base_path"], result, ctx=ctx)
+            # 保存"上次选择"
+            self.storage.update_config(
+                last_salesperson=order["salesperson"],
+                last_customer=order["customer"],
+                last_order_type=order["order_type"],
+                last_product_category=order["product_category"],
+            )
+
+            # 写历史
+            self._append_history(order, result)
+
+            # 展示结果（使用订单号文件夹路径作为"打开"入口）
+            self._show_result(order, result["base_path"], result, ctx=ctx)
+        except Exception as e:
+            QMessageBox.critical(
+                self, "创建失败",
+                f"创建过程中发生错误：\n\n{type(e).__name__}: {e}\n\n"
+                "请检查根目录、模板文件目录是否正确，或联系管理员。"
+            )
 
     def _append_history(self, order, result):
         cfg = self.storage.load_config()

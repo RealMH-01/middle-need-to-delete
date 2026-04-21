@@ -431,12 +431,24 @@ class FolderCleanupDialog(QDialog):
                 errors.append(f"删除失败 {p['abs_path']}：{e}")
 
         # 再执行重命名
+        # 加固 6：Windows 文件名保留字符集（/ 和 \ 在 Unix 下也非法）。
+        # 用户在"新文件名"列手动编辑时可能不小心输入这些字符，
+        # 提前拦截并给出明确提示，避免 os.rename 抛出隐晦的 OSError。
+        _BAD_NAME_CHARS = set('<>:"/\\|?*')
         for p in plans:
             if p["op"] != OP_RENAME:
                 continue
             new_name = p["new_name"].strip()
             if not new_name:
                 errors.append(f"跳过空新名：{p['abs_path']}")
+                continue
+            # 非法字符检查
+            illegal = [ch for ch in new_name if ch in _BAD_NAME_CHARS]
+            if illegal:
+                errors.append(
+                    f"新文件名「{new_name}」包含非法字符 "
+                    f"{''.join(sorted(set(illegal)))}，已跳过"
+                )
                 continue
             src = p["abs_path"]
             if not os.path.exists(src):

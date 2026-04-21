@@ -293,6 +293,8 @@ class BatchPage(QWidget):
             return
         from openpyxl import Workbook
         from openpyxl.styles import Font, PatternFill, Alignment
+        from openpyxl.comments import Comment
+        from openpyxl.utils import get_column_letter
         wb = Workbook()
         ws = wb.active
         ws.title = "批量导入"
@@ -304,6 +306,7 @@ class BatchPage(QWidget):
             cell.font = Font(bold=True, color="FFFFFF")
             cell.fill = PatternFill("solid", fgColor="2196F3")
             cell.alignment = Alignment(horizontal="center", vertical="center")
+
         # 示例（业务员列为空时，使用页面顶部选择的业务员）
         # 产品类别示例取 config.json 中 origin_map 的第一个 key（保持与当前配置一致）
         cfg_sample = self.storage.load_config() if self.storage else {}
@@ -315,8 +318,59 @@ class BatchPage(QWidget):
                    "PO-2026-001", sample_category, "是", "示例业务员"])
         ws.append(["内贸", "DOM-2026002", "示例客户B", "产品示例 1T",
                    "", sample_category, "否", ""])
+
+        # Bug 20：给表头增加批注，告诉用户每一列的有效值和含义，
+        # 避免导入时"产品类别"等填错而静默失败。
+        # 订单类型（A列）
+        type_comment = Comment("请填写「外贸」或「内贸」", "订单文件夹工具")
+        ws.cell(row=1, column=1).comment = type_comment
+
+        # 产品类别（F列）
+        cat_list = list(om_sample.keys())
+        if cat_list:
+            cat_str = "、".join(cat_list)
+            default_hint = (
+                f"留空则使用默认值「{sample_category}」。"
+                if sample_category else "留空则跳过 [产地] 模板文件的复制。"
+            )
+            comment_text = (
+                f"请填写以下产品类别之一：\n{cat_str}\n\n{default_hint}"
+            )
+        else:
+            comment_text = (
+                "当前未配置产品类别。如需使用此功能，"
+                "请在程序首页「⚙ 高级设置」中配置产地映射。"
+            )
+        ws.cell(row=1, column=6).comment = Comment(
+            comment_text, "订单文件夹工具"
+        )
+
+        # 是否需要商检（G列）
+        insp_comment = Comment(
+            "请填写「是」或「否」，仅对外贸订单有效", "订单文件夹工具"
+        )
+        ws.cell(row=1, column=7).comment = insp_comment
+
+        # 业务员（H列）
+        try:
+            sp_names = [it["name"] for it in self.storage.load_salespersons()]
+        except Exception:
+            sp_names = []
+        if sp_names:
+            sp_str = "、".join(sp_names[:20])
+            if len(sp_names) > 20:
+                sp_str += f"…共{len(sp_names)}人"
+            sp_comment_text = (
+                "可选。不填则使用页面顶部选中的业务员。\n\n"
+                f"系统中已有的业务员：\n{sp_str}"
+            )
+        else:
+            sp_comment_text = "可选。不填则使用页面顶部选中的业务员。"
+        ws.cell(row=1, column=8).comment = Comment(
+            sp_comment_text, "订单文件夹工具"
+        )
+
         widths = [12, 22, 24, 28, 18, 12, 14, 12]
-        from openpyxl.utils import get_column_letter
         for i, w in enumerate(widths, start=1):
             ws.column_dimensions[get_column_letter(i)].width = w
         wb.save(path)

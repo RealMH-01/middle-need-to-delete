@@ -65,12 +65,27 @@ class MainWindow(QMainWindow):
             if wizard.exec_() != wizard.Accepted:
                 # 用户主动退出向导：结束整个程序
                 sys.exit(0)
-            wizard_cfg = wizard.collected_config()
+            wizard_cfg = wizard.collected_config() or {}
+
+            # 加固 5：防御性检查——向导理论上在「下一步」时已强制校验了
+            # 根目录非空，但若未来改动导致 collected_config() 返回空 dict
+            # 或 root_dir 为空串，直接 set_root_dir("") 会创建 .order_tool
+            # 在当前工作目录下，造成数据混乱。此处做最后一道拦截。
+            wizard_root = (wizard_cfg.get("root_dir") or "").strip()
+            if not wizard_root:
+                from PyQt5.QtWidgets import QMessageBox
+                QMessageBox.critical(
+                    None, "初始化失败",
+                    "向导未返回有效的根目录，程序无法启动。\n"
+                    "请重新启动程序并在向导中填写根目录。"
+                )
+                sys.exit(1)
+
             self.storage = Storage()
             self.storage.set_root_dir(
-                wizard_cfg["root_dir"], wizard_config=wizard_cfg
+                wizard_root, wizard_config=wizard_cfg
             )
-            save_bootstrap({"last_root": wizard_cfg["root_dir"]})
+            save_bootstrap({"last_root": wizard_root})
         else:
             # 老用户 or 测试环境：按旧逻辑初始化
             self.storage = Storage(last_root if last_root else None)

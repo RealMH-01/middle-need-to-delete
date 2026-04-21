@@ -386,7 +386,8 @@ class Storage:
 
         - 未设置 root_dir / rel_path 为空时静默跳过。
         - 使用 exist_ok=True，已存在不报错。
-        - 任何 OSError 都吞掉，保证 JSON 写入不会因此回滚。
+        - 加固 1：任何异常（含权限错误、路径非法、类型错误等）都吞掉，
+          保证 JSON 写入不会因此回滚，业务员记录始终能成功添加。
         """
         if not self.root_dir or not rel_path:
             return
@@ -397,7 +398,8 @@ class Storage:
                 if seg:
                     path = os.path.join(path, seg)
             os.makedirs(path, exist_ok=True)
-        except OSError:
+        except Exception:
+            # 权限不足 / 非法字符 / 磁盘满 / 类型错误等，统统吞掉
             pass
 
     def _ensure_customer_dir(self, salesperson: str, customer: str) -> None:
@@ -405,6 +407,8 @@ class Storage:
 
         复用 :meth:`build_customer_dir` 的路径拼接逻辑，保证与
         execute_build 时的目录结构一致。
+
+        加固 1：捕获所有异常，保证物理目录创建失败不影响 JSON 写入。
         """
         if not self.root_dir or not salesperson or not customer:
             return
@@ -412,7 +416,7 @@ class Storage:
             path = self.build_customer_dir(salesperson, customer)
             if path:
                 os.makedirs(path, exist_ok=True)
-        except OSError:
+        except Exception:
             pass
 
     # -------- 订单路径拼接 --------

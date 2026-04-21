@@ -495,20 +495,53 @@ class HelpPage(QWidget):
     # 锚点跳转（公开 API，供 MainWindow._show_help_at 调用）
     # ------------------------------------------------------------------
     def goto_anchor(self, anchor: str):
-        """跳到指定锚点并同步下拉框选择。"""
+        """跳到指定锚点并同步下拉框选择。
+
+        加固 4：``QTextBrowser.scrollToAnchor`` 对 HTML ``id`` 属性的
+        跳转在某些 Qt 版本下不稳定（特别是锚点在文档开头附近或刚加载
+        时）。如果跳转后滚动位置没变化（仍在 0），退化为按章节标题
+        文本搜索作为兜底。
+        """
         if not anchor:
             return
         # 同步下拉框
+        section_label = None
         for i in range(self.cmb_section.count()):
             if self.cmb_section.itemData(i) == anchor:
+                section_label = self.cmb_section.itemText(i)
                 self.cmb_section.blockSignals(True)
                 self.cmb_section.setCurrentIndex(i)
                 self.cmb_section.blockSignals(False)
                 break
+
+        self._scroll_to_anchor_with_fallback(anchor, section_label)
+
+    def _scroll_to_anchor_with_fallback(self, anchor: str,
+                                        section_label: str = None) -> None:
+        """先尝试 scrollToAnchor；失败时用 find() 定位章节标题。"""
+        scroll_bar = self.browser.verticalScrollBar()
+        old_pos = scroll_bar.value()
         self.browser.scrollToAnchor(anchor)
+
+        # 加固 4：若滚动条位置未变化（且之前就在顶部），说明跳转可能失败，
+        # 尝试按章节标题文字搜索作为兜底。
+        new_pos = scroll_bar.value()
+        if new_pos == old_pos and old_pos == 0 and section_label:
+            # 先把光标回到开头，否则 find 会从当前位置向下搜索
+            try:
+                from PyQt5.QtGui import QTextCursor
+                cursor = self.browser.textCursor()
+                cursor.movePosition(QTextCursor.Start)
+                self.browser.setTextCursor(cursor)
+                self.browser.find(section_label)
+            except Exception:
+                # 搜索失败也不影响功能，静默跳过
+                pass
 
     # 内部辅助
     def _on_section_changed(self, idx: int):
         anchor = self.cmb_section.itemData(idx)
-        if anchor:
-            self.browser.scrollToAnchor(anchor)
+        if not anchor:
+            return
+        section_label = self.cmb_section.itemText(idx)
+        self._scroll_to_anchor_with_fallback(anchor, section_label)

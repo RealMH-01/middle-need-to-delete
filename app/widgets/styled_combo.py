@@ -123,16 +123,62 @@ class StyledComboBox(QComboBox):
             le.installEventFilter(self)
 
     # ------------------------------------------------------------------
-    # 事件过滤：searchable 模式下点击输入框 -> 弹出下拉
+    # 事件过滤：
+    #   1) searchable 模式下点击输入框 -> 弹出下拉
+    #   2) Bug 16：searchable 模式下失焦时若输入非列表项，回退到有效值
     # ------------------------------------------------------------------
     def eventFilter(self, obj, event):
-        if self._searchable and event.type() == QEvent.MouseButtonPress \
-                and obj is self.lineEdit():
-            view = self.view()
-            if view is None or not view.isVisible():
-                self.showPopup()
-            # 注意：不 return True，让 QLineEdit 继续收到事件以正常放置光标
+        if self._searchable and obj is self.lineEdit():
+            et = event.type()
+            if et == QEvent.MouseButtonPress:
+                view = self.view()
+                if view is None or not view.isVisible():
+                    self.showPopup()
+                # 注意：不 return True，让 QLineEdit 继续收到事件以正常放置光标
+            elif et == QEvent.FocusOut:
+                # Bug 16：失焦时自动纠正无效输入。
+                # 注意：若 InsertPolicy != NoInsert（如批量导入页的
+                # 客户下拉允许自由输入 InsertAtBottom），新值会被自动插入
+                # 到 model，findText 能找到，不会触发回退。
+                self._validate_on_focus_out()
         return super().eventFilter(obj, event)
+
+    # ------------------------------------------------------------------
+    # Bug 16：失焦校验回退
+    # ------------------------------------------------------------------
+    def _validate_on_focus_out(self):
+        """searchable 模式下：若当前文本不在列表中，回退到 currentIndex 对应的文本。
+
+        用户在 ``NoInsert`` 模式下输入了部分关键字（如"环氧"）却未从下拉选中
+        任何一项就离开，此时 ``currentText()`` 仍是部分关键字，下游按值查找
+        (``origin_map.get(...)`` 等) 会静默失败。这里在失焦瞬间把文本
+        自动纠正回最近一次有效的选中项，避免静默错误。
+        """
+        if not self._searchable:
+            return
+        le = self.lineEdit()
+        if le is None:
+            return
+        text = self.currentText()
+        # 文本在列表中 -> 合法，不处理
+        if self.findText(text) >= 0:
+            return
+        # 不合法：按 currentIndex 回退
+        idx = self.currentIndex()
+        if idx >= 0 and idx < self.count():
+            # 阻断信号避免多次触发 currentIndexChanged
+            le.blockSignals(True)
+            try:
+                le.setText(self.itemText(idx))
+            finally:
+                le.blockSignals(False)
+        else:
+            # 无任何有效项，清空即可
+            le.blockSignals(True)
+            try:
+                le.clear()
+            finally:
+                le.blockSignals(False)
 
     # ------------------------------------------------------------------
     # ▼ 箭头定位：始终贴在右侧 drop-down 区域内
