@@ -424,7 +424,29 @@ class BatchPage(QWidget):
     # ============== 采集 ==============
     def _collect_rows(self):
         rows = []
-        common_sales = self.cmb_sales.currentText()
+        common_sales = self.cmb_sales.currentText().strip()
+
+        # Bug 12 修复：顶部的"共用业务员"是 searchable 下拉框，用户可能只输入了
+        # 部分文字而未从下拉列表中点选。这种情况下 currentText() 返回的是无效文本，
+        # 会导致后续每一行订单的路径拼接出错。对共用业务员做阻断式校验。
+        # 注意：cmb_sales 的第一项是空字符串（允许不选，按每行 per_row_sp 使用），
+        # 所以空串是合法的，不需要阻断。
+        if common_sales and self.cmb_sales.findText(common_sales) < 0:
+            QMessageBox.warning(
+                self, "提示",
+                f"业务员「{common_sales}」不在列表中，请从下拉列表中选择。"
+            )
+            return []
+
+        # Bug 12 修复：同样对"共用客户"做阻断式校验（空串合法）。
+        common_customer = self.cmb_customer.currentText().strip()
+        if common_customer and self.cmb_customer.findText(common_customer) < 0:
+            QMessageBox.warning(
+                self, "提示",
+                f"客户「{common_customer}」不在列表中，请从下拉列表中选择。"
+            )
+            return []
+
         # 产品类别列是否可见？不可见时统一返回空串
         cat_col_hidden = self.table.isColumnHidden(6)
         for r in range(self.table.rowCount()):
@@ -440,6 +462,12 @@ class BatchPage(QWidget):
             else:
                 w_cat = self.table.cellWidget(r, 6)
                 product_category = w_cat.currentText() if w_cat is not None else ""
+                # Bug 12 修复：每行产品类别做"宽容式"处理——无效值静默置空，
+                # 不阻断整个批量流程（与共用业务员/客户的阻断式校验不同）。
+                if (product_category
+                        and w_cat is not None
+                        and w_cat.findText(product_category) < 0):
+                    product_category = ""
             chk_w = self.table.cellWidget(r, 7)
             chk = chk_w.findChild(QCheckBox) if chk_w else None
             needs_inspection = bool(chk and chk.isChecked())
@@ -449,7 +477,8 @@ class BatchPage(QWidget):
                 "row_index": r,
                 "order_type": order_type,
                 "order_no": order_no,
-                "customer": customer or self.cmb_customer.currentText(),
+                # 使用已校验过的 common_customer，避免再次调用 currentText() 拿到未校验值
+                "customer": customer or common_customer,
                 "product_info": product_info,
                 "po_no": po_no,
                 "product_category": product_category,

@@ -546,13 +546,14 @@ class TemplateEditorDialog(QDialog):
         if item.data(0, ROLE_OPTIONAL):
             d["optional"] = True
             d["condition"] = item.data(0, ROLE_CONDITION) or ""
-        # 如果该节点未被勾选，且是可选节点，直接不输出（其结构被丢弃）
-        # 对于常规节点，保留 _enabled 标记；flatten 时根据它过滤
+        # Bug 17 修复：不再跳过未勾选节点，而是保留结构并通过 _enabled=False 标记。
+        # 旧实现会把未勾选的节点从 JSON 中永久删除，下次打开编辑器时节点就消失了，
+        # 对"商检资料"这类标准模板的可选节点影响尤其严重——取消一次勾选后永远丢失。
+        # 递归调用本方法时，子节点的 checkState 会被正确记录为 _enabled，
+        # folder_builder.flatten_template_folders 已有 `_enabled is False` 的判断，
+        # 所以未勾选节点在创建时仍会被过滤掉，但结构得到保留便于下次启用。
         for i in range(item.childCount()):
             child = item.child(i)
-            if child.checkState(0) == Qt.Unchecked:
-                # 未勾选的节点不输出到最终模板
-                continue
             d["children"].append(self._item_to_dict(child))
         return d
 

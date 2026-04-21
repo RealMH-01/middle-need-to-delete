@@ -279,6 +279,16 @@ class MainWindow(QMainWindow):
                     page.cmb_category.setCurrentIndex(idx)
                 page.cmb_category.blockSignals(False)
 
+        # Bug 15 修复：上面用 blockSignals(True) 设置了 cmb_order_type，
+        # 阻止了 currentIndexChanged 触发 _on_order_type_changed，导致
+        # "外贸才显示商检复选框"的可见性逻辑没有执行。若用户当前在外贸页面、
+        # 预填了一条内贸记录，商检复选框仍然可见（反之亦然）。
+        # 在所有字段预填完成后手动调一次，确保商检可见性 / 模板状态正确。
+        try:
+            page._on_order_type_changed()
+        except Exception:
+            pass
+
         # 7) 订单号留空让用户填新的
         page.edit_order_no.clear()
         page.edit_order_no.setFocus()

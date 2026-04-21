@@ -342,7 +342,12 @@ class SinglePage(QWidget):
         if ok and name.strip():
             if self.storage.add_salesperson(name.strip()):
                 self._load_salespersons()
-                self.cmb_sales.setCurrentText(name.strip())
+                # Bug 4 修复：StyledComboBox 在 searchable 模式下是 editable，
+                # setCurrentText 只会修改 lineEdit 文本，不触发 currentIndexChanged 信号，
+                # 导致后续的客户列表 / 模板联动不会刷新。改用 findText + setCurrentIndex。
+                idx = self.cmb_sales.findText(name.strip())
+                if idx >= 0:
+                    self.cmb_sales.setCurrentIndex(idx)
             else:
                 QMessageBox.information(self, "提示", "该业务员已存在")
 
@@ -356,7 +361,12 @@ class SinglePage(QWidget):
         if ok and name.strip():
             if self.storage.add_customer(sales, name.strip()):
                 self._load_customers()
-                self.cmb_customer.setCurrentText(name.strip())
+                # Bug 4 修复：同上，setCurrentText 不会触发信号导致 edit_customer
+                # 和模板不联动刷新。改用 findText + setCurrentIndex 触发
+                # currentIndexChanged → _on_customer_changed → _reload_templates。
+                idx = self.cmb_customer.findText(name.strip())
+                if idx >= 0:
+                    self.cmb_customer.setCurrentIndex(idx)
             else:
                 QMessageBox.information(self, "提示", "该客户已存在")
 
@@ -387,11 +397,36 @@ class SinglePage(QWidget):
         if not customer:
             QMessageBox.warning(self, "提示", "请填写客户名称")
             return None
+
+        # Bug 8 修复：searchable 下拉框在用户输入后未从下拉列表点选时，
+        # currentText() 会返回用户输入的原始文本（如只输入了"张"而未选"张三"），
+        # 这样后续 build_customer_dir 会找不到 rel_path 并走 fallback 逻辑，
+        # 在文件系统中创建不在 salespersons.json 中的无效目录。
+        # 这里对业务员做阻断式校验，确保必须是有效的下拉列表项。
+        salesperson = self.cmb_sales.currentText()
+        if self.cmb_sales.findText(salesperson) < 0:
+            QMessageBox.warning(
+                self, "提示",
+                f"业务员「{salesperson}」不在列表中，请从下拉列表中选择一个有效的业务员。\n"
+                "如需新增业务员，请点击业务员旁的「+」按钮。"
+            )
+            self.cmb_sales.setFocus()
+            return None
+
         # 产品类别被隐藏时（origin_map 为空），返回空串，避免下游逻辑异常
         if self.cmb_category.isVisible():
             product_category = self.cmb_category.currentText()
+            # 仅当类别下拉框可见时才做有效性校验
+            if self.cmb_category.findText(product_category) < 0:
+                QMessageBox.warning(
+                    self, "提示",
+                    f"产品类别「{product_category}」不在列表中，请从下拉列表中选择。"
+                )
+                self.cmb_category.setFocus()
+                return None
         else:
             product_category = ""
+
         return {
             "order_type": order_type,
             "order_no": order_no,
@@ -399,7 +434,7 @@ class SinglePage(QWidget):
             "product_info": self.edit_product_info.text().strip(),
             "po_no": self.edit_po.text().strip(),
             "product_category": product_category,
-            "salesperson": self.cmb_sales.currentText(),
+            "salesperson": salesperson,
             "needs_inspection": self.chk_inspection.isChecked() and order_type == "外贸",
         }
 
