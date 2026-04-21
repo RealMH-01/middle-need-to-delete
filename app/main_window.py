@@ -126,6 +126,11 @@ class MainWindow(QMainWindow):
 
         self.page_single.request_back.connect(lambda: self._goto(PAGE_HOME))
         self.page_batch.request_back.connect(lambda: self._goto(PAGE_HOME))
+        # 单笔 / 批量页面顶部"❓帮助"按钮 → 打开右侧帮助 Dock，并跳转到对应锚点
+        if hasattr(self.page_single, "request_help"):
+            self.page_single.request_help.connect(self._show_help_at)
+        if hasattr(self.page_batch, "request_help"):
+            self.page_batch.request_help.connect(self._show_help_at)
         self.page_templates.request_back.connect(lambda: self._goto(PAGE_HOME))
         self.page_history.request_back.connect(lambda: self._goto(PAGE_HOME))
         # 帮助页面不再有"返回首页"信号 —— 通过 DockWidget 的关闭按钮自行隐藏

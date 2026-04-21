@@ -1,5 +1,17 @@
 # -*- coding: utf-8 -*-
-"""批量导入页"""
+"""批量导入页 —— Neo-brutalism 视觉适配 + StyledComboBox 替换。
+
+本轮改造（不动业务逻辑）：
+- 顶部栏新增 "❓帮助" 按钮，发出 :pyattr:`request_help` 信号，让
+  主窗口打开帮助 DockWidget 并跳转到批量导入章节；
+- 身份区与每行产品类别、订单类型下拉框改用
+  :class:`app.widgets.styled_combo.StyledComboBox`（业务员/客户可搜索）；
+- 产品类别在 ``origin_map`` 为空时整列隐藏，但列索引保持不变，以兼容
+  现有测试与数据流；:meth:`_collect_rows` 在列隐藏时返回空串；
+- Excel 导入完成后，对每行业务员做一次系统校验，找不到的行以
+  黄色背景高亮提示（**警告级**，不阻断导入）；
+- 按钮调整为 Neo-brutalism 风格（主按钮默认强调色，次按钮灰体黑边）。
+"""
 
 import os
 from datetime import datetime
@@ -7,19 +19,27 @@ from datetime import datetime
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QBrush, QColor
 from PyQt5.QtWidgets import (
-    QCheckBox, QComboBox, QFileDialog, QGridLayout, QGroupBox, QHBoxLayout,
+    QCheckBox, QFileDialog, QGridLayout, QGroupBox, QHBoxLayout,
     QHeaderView, QLabel, QLineEdit, QMessageBox, QPushButton, QSpinBox,
     QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget
 )
 
 from ..core import folder_builder
+from ..style import COLOR_SECONDARY
+from ..widgets import StyledComboBox
 
 
 HEADERS = ["订单类型", "订单号", "客户名称", "产品信息", "客户PO号", "产品类别", "是否商检", "状态"]
 
+# 黄色警告背景（异常业务员行高亮用）
+_WARN_BG = QColor(COLOR_SECONDARY)  # #FFD93D
+_WARN_FG = QColor("#000000")
+
 
 class BatchPage(QWidget):
     request_back = pyqtSignal()
+    # 顶部"❓帮助"按钮：让主窗口打开帮助 DockWidget 并跳转到批量章节
+    request_help = pyqtSignal(str)
 
     def __init__(self, storage, parent=None):
         super().__init__(parent)
@@ -32,6 +52,7 @@ class BatchPage(QWidget):
         root.setContentsMargins(20, 14, 20, 14)
         root.setSpacing(10)
 
+        # ------ 顶部栏 ------
         top = QHBoxLayout()
         btn_back = QPushButton("← 返回首页")
         btn_back.setObjectName("SecondaryButton")
@@ -41,20 +62,36 @@ class BatchPage(QWidget):
         title.setObjectName("TitleLabel")
         top.addWidget(title)
         top.addStretch(1)
+
+        # ❓ 帮助按钮 —— 打开右侧帮助 Dock，定位到"批量导入"章节
+        btn_help = QPushButton("❓ 帮助")
+        btn_help.setObjectName("SecondaryButton")
+        btn_help.setToolTip("打开右侧帮助面板，查看批量导入的详细说明")
+        btn_help.clicked.connect(lambda: self.request_help.emit("sec-batch"))
+        top.addWidget(btn_help)
+
         root.addLayout(top)
 
         # ----- 身份与模板 -----
         id_group = QGroupBox("① 身份与模板（批量订单共用）")
         id_layout = QGridLayout(id_group)
         id_layout.addWidget(QLabel("业务员："), 0, 0)
-        self.cmb_sales = QComboBox()
+        self.cmb_sales = StyledComboBox(searchable=True)
+        self.cmb_sales.setMinimumWidth(180)
         id_layout.addWidget(self.cmb_sales, 0, 1)
         id_layout.addWidget(QLabel("客户（可留空，使用每行的客户名称）："), 0, 2)
-        self.cmb_customer = QComboBox()
-        self.cmb_customer.setEditable(True)
+        self.cmb_customer = StyledComboBox(searchable=True)
+        self.cmb_customer.setMinimumWidth(200)
         id_layout.addWidget(self.cmb_customer, 0, 3)
-        tip = QLabel("提示：批量导入时，模板按「订单类型 + 业务员 + 客户」自动匹配。")
-        tip.setStyleSheet("color:#666;")
+        tip = QLabel(
+            "提示：批量导入时，模板按「订单类型 + 业务员 + 客户」自动匹配；"
+            "若 Excel 中「业务员」列在系统中不存在，对应行会被"
+            "<span style='background:#FFD93D;color:#000;padding:0 4px;'>"
+            "黄色警告</span>标记。"
+        )
+        tip.setStyleSheet("color:#000000;")
+        tip.setWordWrap(True)
+        tip.setTextFormat(Qt.RichText)
         id_layout.addWidget(tip, 1, 0, 1, 4)
         self.cmb_sales.currentIndexChanged.connect(self._reload_customers)
         root.addWidget(id_group)
@@ -117,6 +154,7 @@ class BatchPage(QWidget):
         btn_preview.setObjectName("SecondaryButton")
         btn_preview.clicked.connect(self._preview_all)
         btn_run = QPushButton("确认批量创建")
+        # 主按钮：Neo-brutalism 主色 + 加粗强调
         btn_run.setStyleSheet("font-size:14px; font-weight:bold; padding:8px 24px;")
         btn_run.clicked.connect(self._run_all)
         bottom.addWidget(btn_preview)
@@ -126,6 +164,8 @@ class BatchPage(QWidget):
     # ============== 外部入口 ==============
     def refresh(self):
         self._load_salespersons()
+        # 根据 origin_map 决定是否隐藏产品类别列（列索引保持不变）
+        self._refresh_category_column_visibility()
 
     # ============== 数据 ==============
     def _load_salespersons(self):
@@ -144,6 +184,18 @@ class BatchPage(QWidget):
         else:
             self.cmb_customer.addItems([""])
 
+    def _refresh_category_column_visibility(self):
+        """``origin_map`` 为空时隐藏"产品类别"列（索引 6）。
+
+        列索引保持不变，以便既有的 ``_collect_rows``、单测逻辑依然
+        使用 ``cellWidget(r, 6)`` 访问；隐藏时不会影响功能，只是
+        用户看不到该列，且 ``_collect_rows`` 在此情况下返回空串。
+        """
+        cfg = self.storage.load_config() if self.storage else {}
+        has_cats = bool(cfg.get("origin_map") or {})
+        # 列 6 = 产品类别
+        self.table.setColumnHidden(6, not has_cats)
+
     # ============== 表格操作 ==============
     def _add_row(self, data=None):
         """data: dict 可预填"""
@@ -155,8 +207,8 @@ class BatchPage(QWidget):
         it.setTextAlignment(Qt.AlignCenter)
         self.table.setItem(r, 0, it)
 
-        # 订单类型 ComboBox
-        cmb_type = QComboBox()
+        # 订单类型 StyledComboBox
+        cmb_type = StyledComboBox()
         cmb_type.addItems(["外贸", "内贸"])
         if data and data.get("order_type") in ("外贸", "内贸"):
             cmb_type.setCurrentText(data["order_type"])
@@ -175,8 +227,8 @@ class BatchPage(QWidget):
         # 客户PO号
         self.table.setItem(r, 5, QTableWidgetItem(data.get("po_no", "") if data else ""))
 
-        # 产品类别（从 config.json 的 origin_map 动态读取）
-        cmb_cat = QComboBox()
+        # 产品类别（从 config.json 的 origin_map 动态读取；列可能被隐藏）
+        cmb_cat = StyledComboBox(searchable=True)
         cfg = self.storage.load_config() if self.storage else {}
         category_options = list((cfg.get("origin_map") or {}).keys())
         if category_options:
@@ -292,6 +344,17 @@ class BatchPage(QWidget):
             # fallback 默认值：origin_map 的第一个 key（若有），否则空串
             default_category = valid_categories[0] if valid_categories else ""
 
+            # 系统中所有业务员名单，用于校验 Excel 中的"业务员"列
+            known_salespersons = {
+                it["name"] for it in self.storage.load_salespersons()
+            }
+            # 记录本次导入时"在系统中找不到"的行索引（以本次插入后的 row 号为准）
+            invalid_rows = []
+            invalid_names = []
+
+            # 本次导入的起点行号（追加模式）
+            start_row = self.table.rowCount()
+
             count = 0
             for r in rows[1:]:
                 if not r or all(x is None or str(x).strip() == "" for x in r):
@@ -311,16 +374,59 @@ class BatchPage(QWidget):
                     data["order_type"] = "外贸"
                 insp_raw = str(r[i_insp]).strip() if i_insp >= 0 and r[i_insp] is not None else ""
                 data["needs_inspection"] = insp_raw in ("是", "Y", "y", "YES", "yes", "1", "true", "True", "✓")
+
+                # 每行业务员校验（Excel 写了、但系统里没有）
+                per_row_sp = data["salesperson"].strip()
+                row_invalid = bool(per_row_sp) and per_row_sp not in known_salespersons
+
                 self._add_row(data)
+                new_row_idx = self.table.rowCount() - 1
+                if row_invalid:
+                    invalid_rows.append(new_row_idx)
+                    invalid_names.append(per_row_sp)
+                    self._mark_row_warning(
+                        new_row_idx,
+                        f"⚠ 业务员「{per_row_sp}」未在系统中找到，请先新增或用扫描导入",
+                    )
                 count += 1
-            QMessageBox.information(self, "成功", f"已导入 {count} 行。")
+
+            # 汇总提示
+            if invalid_rows:
+                uniq_names = sorted(set(invalid_names))
+                preview = "、".join(uniq_names[:10])
+                if len(uniq_names) > 10:
+                    preview += "…"
+                QMessageBox.warning(
+                    self, "导入完成（含警告）",
+                    f"已导入 {count} 行，其中 {len(invalid_rows)} 行业务员在系统中未找到：\n"
+                    f"{preview}\n\n"
+                    "这些行已用<黄色>背景高亮，可在执行前到首页"
+                    "「🧭 扫描导入业务员」或手动添加业务员后再批量创建。"
+                )
+            else:
+                QMessageBox.information(self, "成功", f"已导入 {count} 行。")
         except Exception as e:
             QMessageBox.critical(self, "错误", f"解析 Excel 失败：{e}")
+
+    def _mark_row_warning(self, row: int, status_text: str = ""):
+        """将整行背景设为警告黄色，并在状态列写入提示。"""
+        for col in range(self.table.columnCount()):
+            item = self.table.item(row, col)
+            if item is not None:
+                item.setBackground(QBrush(_WARN_BG))
+                item.setForeground(QBrush(_WARN_FG))
+        if status_text:
+            it = QTableWidgetItem(status_text)
+            it.setBackground(QBrush(_WARN_BG))
+            it.setForeground(QBrush(_WARN_FG))
+            self.table.setItem(row, 8, it)
 
     # ============== 采集 ==============
     def _collect_rows(self):
         rows = []
         common_sales = self.cmb_sales.currentText()
+        # 产品类别列是否可见？不可见时统一返回空串
+        cat_col_hidden = self.table.isColumnHidden(6)
         for r in range(self.table.rowCount()):
             order_type = self.table.cellWidget(r, 1).currentText()
             no_item = self.table.item(r, 2)
@@ -329,7 +435,11 @@ class BatchPage(QWidget):
             customer = self.table.item(r, 3).text().strip() if self.table.item(r, 3) else ""
             product_info = self.table.item(r, 4).text().strip() if self.table.item(r, 4) else ""
             po_no = self.table.item(r, 5).text().strip() if self.table.item(r, 5) else ""
-            product_category = self.table.cellWidget(r, 6).currentText()
+            if cat_col_hidden:
+                product_category = ""
+            else:
+                w_cat = self.table.cellWidget(r, 6)
+                product_category = w_cat.currentText() if w_cat is not None else ""
             chk_w = self.table.cellWidget(r, 7)
             chk = chk_w.findChild(QCheckBox) if chk_w else None
             needs_inspection = bool(chk and chk.isChecked())

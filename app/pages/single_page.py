@@ -1,5 +1,17 @@
 # -*- coding: utf-8 -*-
-"""单笔创建页"""
+"""单笔创建页 —— Neo-brutalism 视觉适配 + StyledComboBox 替换。
+
+本轮改造（不动业务逻辑）：
+- 顶部栏新增 "❓帮助" 按钮，点击后发出 :pyattr:`request_help` 信号，
+  由主窗口打开帮助 DockWidget 并跳转到对应锚点；
+- 身份/模板选择区的布局从 ``QGridLayout`` 拆成一条独立的
+  ``QHBoxLayout``，每组"标签 + 下拉 + 辅助按钮"自包含，不再跨列拉伸；
+- 所有 ``QComboBox`` 替换为可搜索的
+  :class:`app.widgets.styled_combo.StyledComboBox`（业务员/客户使用
+  searchable，其它保持风格统一）；
+- 产品类别在 ``config.json`` 中 ``origin_map`` 为空时整组隐藏；
+  :meth:`_collect_order` 返回的 ``product_category`` 在被隐藏时为空串。
+"""
 
 import os
 from datetime import datetime
@@ -7,7 +19,7 @@ from datetime import datetime
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import (
-    QCheckBox, QComboBox, QFormLayout, QFrame, QGridLayout, QGroupBox,
+    QCheckBox, QFormLayout, QFrame, QGridLayout, QGroupBox,
     QHBoxLayout, QInputDialog, QLabel, QLineEdit, QMessageBox, QPushButton,
     QSizePolicy, QSpacerItem, QTextEdit, QVBoxLayout, QWidget
 )
@@ -16,10 +28,13 @@ from ..core import folder_builder
 from ..dialogs.template_preview import TemplatePreviewDialog
 from ..dialogs.scan_preview import ScanPreviewDialog
 from ..dialogs.folder_cleanup import FolderCleanupDialog
+from ..widgets import StyledComboBox
 
 
 class SinglePage(QWidget):
     request_back = pyqtSignal()
+    # 顶部"❓帮助"按钮：让主窗口打开帮助 DockWidget 并跳转到单笔章节
+    request_help = pyqtSignal(str)
 
     def __init__(self, storage, parent=None):
         super().__init__(parent)
@@ -34,78 +49,113 @@ class SinglePage(QWidget):
         root.setContentsMargins(20, 14, 20, 14)
         root.setSpacing(10)
 
-        # 顶部栏
+        # ------ 顶部栏 ------
         top = QHBoxLayout()
         btn_back = QPushButton("← 返回首页")
         btn_back.setObjectName("SecondaryButton")
         btn_back.clicked.connect(self.request_back.emit)
         top.addWidget(btn_back)
+
         title = QLabel("单笔创建")
         title.setObjectName("TitleLabel")
         top.addWidget(title)
         top.addStretch(1)
-        btn_help = QPushButton("命名变量说明")
-        btn_help.setObjectName("LinkButton")
-        btn_help.clicked.connect(self._show_naming_help)
+
+        # 命名变量说明 —— 保留原有 MessageBox 入口，文字更直白
+        btn_naming = QPushButton("命名变量说明")
+        btn_naming.setObjectName("LinkButton")
+        btn_naming.clicked.connect(self._show_naming_help)
+        top.addWidget(btn_naming)
+
+        # ❓ 帮助按钮 —— 打开右侧帮助 Dock，定位到"单笔创建"章节
+        btn_help = QPushButton("❓ 帮助")
+        btn_help.setObjectName("SecondaryButton")
+        btn_help.setToolTip("打开右侧帮助面板，查看单笔创建的详细说明")
+        btn_help.clicked.connect(lambda: self.request_help.emit("sec-single"))
         top.addWidget(btn_help)
+
         root.addLayout(top)
 
-        # ----- 身份与模板选择区 -----
+        # ============== ① 身份与模板选择区 ==============
+        # 布局要点：将原来的 QGridLayout 改为一条 QHBoxLayout，
+        # 每组"标签 + 下拉 [+ 辅助按钮]"自成一个子 HBox，避免跨列拉伸。
         id_group = QGroupBox("① 身份与模板选择")
-        id_layout = QGridLayout(id_group)
-        id_layout.setHorizontalSpacing(8)
-        id_layout.setVerticalSpacing(8)
-        # 网格列宽自适应：业务员/订单类型列、客户/模板列更宽，产品类别较窄
-        id_layout.setColumnStretch(1, 2)
-        id_layout.setColumnStretch(3, 2)
-        id_layout.setColumnStretch(5, 1)
+        id_outer = QVBoxLayout(id_group)
+        id_outer.setSpacing(8)
 
-        # 第 0 行：业务员 / 客户
-        id_layout.addWidget(QLabel("业务员："), 0, 0)
-        self.cmb_sales = QComboBox()
-        self.cmb_sales.setEditable(False)
+        id_layout = QHBoxLayout()
+        id_layout.setSpacing(10)
+
+        # —— 业务员 ——
+        id_layout.addWidget(QLabel("业务员："))
+        self.cmb_sales = StyledComboBox(searchable=True)
+        self.cmb_sales.setMinimumWidth(160)
         self.cmb_sales.currentIndexChanged.connect(self._on_sales_changed)
+        id_layout.addWidget(self.cmb_sales, 2)
         btn_add_sales = QPushButton("+")
-        btn_add_sales.setFixedWidth(28)
+        btn_add_sales.setObjectName("SecondaryButton")
+        btn_add_sales.setFixedWidth(32)
+        btn_add_sales.setToolTip("新增业务员")
         btn_add_sales.clicked.connect(self._add_salesperson)
-        id_layout.addWidget(self.cmb_sales, 0, 1)
-        id_layout.addWidget(btn_add_sales, 0, 2)
+        id_layout.addWidget(btn_add_sales)
 
-        id_layout.addWidget(QLabel("客户："), 0, 3)
-        self.cmb_customer = QComboBox()
+        id_layout.addSpacing(10)
+
+        # —— 客户 ——
+        id_layout.addWidget(QLabel("客户："))
+        self.cmb_customer = StyledComboBox(searchable=True)
+        self.cmb_customer.setMinimumWidth(160)
         self.cmb_customer.currentIndexChanged.connect(self._on_customer_changed)
+        id_layout.addWidget(self.cmb_customer, 2)
         btn_add_customer = QPushButton("+")
-        btn_add_customer.setFixedWidth(28)
+        btn_add_customer.setObjectName("SecondaryButton")
+        btn_add_customer.setFixedWidth(32)
+        btn_add_customer.setToolTip("为当前业务员新增客户")
         btn_add_customer.clicked.connect(self._add_customer)
-        id_layout.addWidget(self.cmb_customer, 0, 4)
-        id_layout.addWidget(btn_add_customer, 0, 5)
+        id_layout.addWidget(btn_add_customer)
 
-        # 第 1 行：订单类型 | 模板 | 产品类别 | 预览模板
-        # （订单类型从②移上来，放在模板左边，切换后模板自动刷新）
-        id_layout.addWidget(QLabel("订单类型："), 1, 0)
-        self.cmb_order_type = QComboBox()
+        id_layout.addSpacing(10)
+
+        # —— 订单类型 ——
+        id_layout.addWidget(QLabel("订单类型："))
+        self.cmb_order_type = StyledComboBox()
         self.cmb_order_type.addItems(["外贸", "内贸"])
+        self.cmb_order_type.setMinimumWidth(90)
         self.cmb_order_type.currentIndexChanged.connect(self._on_order_type_changed)
-        id_layout.addWidget(self.cmb_order_type, 1, 1)
+        id_layout.addWidget(self.cmb_order_type, 1)
 
-        id_layout.addWidget(QLabel("模板："), 1, 2)
-        self.cmb_template = QComboBox()
+        id_outer.addLayout(id_layout)
+
+        # 第二条 HBox：模板 + 产品类别 + 预览模板
+        id_layout2 = QHBoxLayout()
+        id_layout2.setSpacing(10)
+
+        id_layout2.addWidget(QLabel("模板："))
+        self.cmb_template = StyledComboBox()
+        self.cmb_template.setMinimumWidth(220)
         self.cmb_template.currentIndexChanged.connect(self._on_template_changed)
-        id_layout.addWidget(self.cmb_template, 1, 3)
+        id_layout2.addWidget(self.cmb_template, 3)
 
-        id_layout.addWidget(QLabel("产品类别："), 1, 4)
-        self.cmb_category = QComboBox()
+        id_layout2.addSpacing(10)
+
+        # 产品类别相关控件放到专门的容器里，方便整组隐藏
+        self._lbl_category = QLabel("产品类别：")
+        self.cmb_category = StyledComboBox(searchable=True)
+        self.cmb_category.setMinimumWidth(130)
         # 产品类别从 config.json 的 origin_map 动态读取，在 refresh() 中填充
-        id_layout.addWidget(self.cmb_category, 1, 5)
+        id_layout2.addWidget(self._lbl_category)
+        id_layout2.addWidget(self.cmb_category, 1)
 
         btn_preview = QPushButton("预览模板")
         btn_preview.setObjectName("SecondaryButton")
         btn_preview.clicked.connect(self._preview_template)
-        id_layout.addWidget(btn_preview, 2, 5)
+        id_layout2.addWidget(btn_preview)
+
+        id_outer.addLayout(id_layout2)
 
         root.addWidget(id_group)
 
-        # ----- 订单信息表单 -----
+        # ============== ② 订单信息表单 ==============
         order_group = QGroupBox("② 订单信息")
         form = QGridLayout(order_group)
         form.setHorizontalSpacing(8)
@@ -136,13 +186,14 @@ class SinglePage(QWidget):
 
         root.addWidget(order_group)
 
-        # ----- 操作按钮 -----
+        # ============== 操作按钮 ==============
         bottom = QHBoxLayout()
         bottom.addStretch(1)
         btn_reset = QPushButton("重置")
         btn_reset.setObjectName("SecondaryButton")
         btn_reset.clicked.connect(self._reset_form)
         self.btn_next = QPushButton("下一步：扫描并预览 →")
+        # 主操作按钮：加粗、额外内边距，突出 Neo-brutalism 行动感
         self.btn_next.setStyleSheet("font-size:14px; font-weight:bold; padding:8px 24px;")
         self.btn_next.clicked.connect(self._scan_and_preview)
         bottom.addWidget(btn_reset)
@@ -159,7 +210,11 @@ class SinglePage(QWidget):
         self._on_order_type_changed()
 
     def _reload_product_categories(self):
-        """根据 config.json 的 origin_map 动态刷新"产品类别"下拉框。"""
+        """根据 config.json 的 origin_map 动态刷新"产品类别"下拉框。
+
+        当 ``origin_map`` 为空时隐藏整组（标签 + 下拉），
+        :meth:`_collect_order` 返回的 ``product_category`` 将是空串。
+        """
         if not hasattr(self, "cmb_category") or self.cmb_category is None:
             return
         cfg = self.storage.load_config() if self.storage else {}
@@ -179,6 +234,12 @@ class SinglePage(QWidget):
             else:
                 self.cmb_category.setCurrentIndex(0)
         self.cmb_category.blockSignals(False)
+
+        # origin_map 为空时整组隐藏；有内容时显示
+        has_cats = bool(categories)
+        self.cmb_category.setVisible(has_cats)
+        if hasattr(self, "_lbl_category") and self._lbl_category is not None:
+            self._lbl_category.setVisible(has_cats)
 
     # ============== 数据加载 ==============
     def _load_salespersons(self):
@@ -326,13 +387,18 @@ class SinglePage(QWidget):
         if not customer:
             QMessageBox.warning(self, "提示", "请填写客户名称")
             return None
+        # 产品类别被隐藏时（origin_map 为空），返回空串，避免下游逻辑异常
+        if self.cmb_category.isVisible():
+            product_category = self.cmb_category.currentText()
+        else:
+            product_category = ""
         return {
             "order_type": order_type,
             "order_no": order_no,
             "customer": customer,
             "product_info": self.edit_product_info.text().strip(),
             "po_no": self.edit_po.text().strip(),
-            "product_category": self.cmb_category.currentText(),
+            "product_category": product_category,
             "salesperson": self.cmb_sales.currentText(),
             "needs_inspection": self.chk_inspection.isChecked() and order_type == "外贸",
         }

@@ -1,5 +1,17 @@
 # -*- coding: utf-8 -*-
-"""启动页（首页）"""
+"""启动页（首页） —— Neo-brutalism 视觉适配。
+
+本轮改造要点（仅视觉与交互）：
+- 配置区、模式选择区、底部工具栏三块卡片改用
+  :class:`app.widgets.neo_shadow_frame.NeoShadowFrame` 替代原
+  ``QFrame``，自带硬偏移黑阴影；
+- 主按钮（"📝 单笔创建" / "📦 批量导入"）使用 ``BigButton`` 对象名，
+  次级按钮（底部工具栏）使用 ``SecondaryButton``，保持与全局 QSS 一致；
+- 去掉灰色分隔线，改为纯黑粗线 (4px / COLOR_INK)；
+- 顶部补充一段说明文字引导用户完成首次配置；
+- 扫描导入：在订单根目录不存在或为空时给出友好提示；
+  用户未勾选任何扫描结果时同样提示。
+"""
 
 import os
 
@@ -8,6 +20,9 @@ from PyQt5.QtWidgets import (
     QFileDialog, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit,
     QMessageBox, QPushButton, QSizePolicy, QSpacerItem, QVBoxLayout, QWidget
 )
+
+from ..style import COLOR_INK
+from ..widgets import NeoShadowFrame
 
 
 class HomePage(QWidget):
@@ -47,11 +62,19 @@ class HomePage(QWidget):
         layout.addWidget(title)
         layout.addWidget(subtitle)
 
-        # 配置区
-        config_frame = QFrame()
-        config_frame.setStyleSheet(
-            "QFrame{background:#FFFFFF;border:1px solid #D0D7DE;border-radius:10px;}"
+        # 顶部简要引导文字：向首次使用的用户解释整体流程
+        intro = QLabel(
+            "① 先设置公司资料根目录 → ② 可选设置模板文件目录 → "
+            "③ 进入「单笔创建」或「批量导入」即可自动生成订单文件夹。"
+            "更多功能可在「❓ 使用帮助」查看。"
         )
+        intro.setWordWrap(True)
+        intro.setAlignment(Qt.AlignCenter)
+        intro.setStyleSheet("color:#000000; font-weight:bold;")
+        layout.addWidget(intro)
+
+        # ============== 配置区卡片（NeoShadowFrame） ==============
+        config_frame = NeoShadowFrame()
         cfg_layout = QGridLayout(config_frame)
         cfg_layout.setContentsMargins(20, 20, 20, 20)
         cfg_layout.setHorizontalSpacing(10)
@@ -64,9 +87,9 @@ class HomePage(QWidget):
         self.root_edit.setPlaceholderText("请设置公司资料存放的根目录（必填）")
         self.root_edit.setReadOnly(False)
         btn_browse_root = QPushButton("浏览…")
+        btn_browse_root.setObjectName("SecondaryButton")
         btn_browse_root.clicked.connect(self._browse_root)
         btn_save_root = QPushButton("保存")
-        btn_save_root.setObjectName("SecondaryButton")
         btn_save_root.clicked.connect(self._save_root)
 
         cfg_layout.addWidget(lbl1, 0, 0)
@@ -78,11 +101,12 @@ class HomePage(QWidget):
         lbl2 = QLabel("模板文件目录：")
         lbl2.setObjectName("SectionLabel")
         self.tpl_edit = QLineEdit()
-        self.tpl_edit.setPlaceholderText("存放模板文件的目录（可选，按「产地/文件」的子目录结构组织）")
+        self.tpl_edit.setPlaceholderText(
+            "存放模板文件的目录（可选，按「产地/文件」的子目录结构组织）")
         btn_browse_tpl = QPushButton("浏览…")
+        btn_browse_tpl.setObjectName("SecondaryButton")
         btn_browse_tpl.clicked.connect(self._browse_tpl)
         btn_save_tpl = QPushButton("保存")
-        btn_save_tpl.setObjectName("SecondaryButton")
         btn_save_tpl.clicked.connect(self._save_tpl)
 
         cfg_layout.addWidget(lbl2, 1, 0)
@@ -90,13 +114,35 @@ class HomePage(QWidget):
         cfg_layout.addWidget(btn_browse_tpl, 1, 2)
         cfg_layout.addWidget(btn_save_tpl, 1, 3)
 
-        tip = QLabel("提示：模板目录结构请参考 README。子目录名称需与「⚙ 高级设置」中的产地配置保持一致。")
-        tip.setStyleSheet("color:#666666;")
+        tip = QLabel(
+            "提示：模板目录的子目录名称需与「⚙ 高级设置」中的产地配置保持一致；"
+            "若未设置模板目录，将跳过模板文件复制步骤。"
+        )
+        tip.setWordWrap(True)
+        tip.setStyleSheet("color:#000000;")
         cfg_layout.addWidget(tip, 2, 1, 1, 3)
 
         layout.addWidget(config_frame)
 
-        # 模式选择区
+        # ============== 模式选择区卡片（NeoShadowFrame） ==============
+        mode_card = NeoShadowFrame()
+        mode_inner = QVBoxLayout(mode_card)
+        mode_inner.setContentsMargins(20, 20, 20, 20)
+        mode_inner.setSpacing(8)
+
+        mode_title = QLabel("请选择创建方式")
+        mode_title.setAlignment(Qt.AlignCenter)
+        mode_title.setStyleSheet("font-weight:bold; font-size:16px;")
+        mode_inner.addWidget(mode_title)
+
+        mode_desc = QLabel(
+            "单笔创建适合逐单填写；批量导入可通过 Excel 一次性生成多笔订单文件夹。"
+        )
+        mode_desc.setAlignment(Qt.AlignCenter)
+        mode_desc.setWordWrap(True)
+        mode_desc.setStyleSheet("color:#000000;")
+        mode_inner.addWidget(mode_desc)
+
         mode_layout = QHBoxLayout()
         mode_layout.setSpacing(30)
         mode_layout.setAlignment(Qt.AlignCenter)
@@ -113,17 +159,27 @@ class HomePage(QWidget):
         mode_layout.addWidget(self.btn_single)
         mode_layout.addWidget(self.btn_batch)
         mode_layout.addStretch(1)
-        layout.addLayout(mode_layout)
+        mode_inner.addLayout(mode_layout)
 
-        # 分隔线：大按钮 ↑ 小按钮 ↓
+        layout.addWidget(mode_card)
+
+        # 分隔线：Neo-brutalism 风格的 4px 纯黑硬线
         divider = QFrame()
         divider.setFrameShape(QFrame.HLine)
-        divider.setFrameShadow(QFrame.Sunken)
-        divider.setStyleSheet("color:#D0D7DE;")
+        divider.setFixedHeight(4)
+        divider.setStyleSheet(f"background:{COLOR_INK}; border:none;")
         layout.addWidget(divider)
-        layout.addSpacing(4)
 
-        # 底部小按钮
+        # ============== 底部工具栏卡片（NeoShadowFrame） ==============
+        bottom_card = NeoShadowFrame()
+        bottom_inner = QVBoxLayout(bottom_card)
+        bottom_inner.setContentsMargins(16, 14, 16, 14)
+        bottom_inner.setSpacing(6)
+
+        bottom_title = QLabel("更多功能")
+        bottom_title.setStyleSheet("font-weight:bold; font-size:14px;")
+        bottom_inner.addWidget(bottom_title)
+
         bottom = QHBoxLayout()
         bottom.setAlignment(Qt.AlignCenter)
 
@@ -154,8 +210,8 @@ class HomePage(QWidget):
         # 底部按钮等宽整齐
         for _b in (self.btn_scan, self.btn_cleanup, self.btn_templates,
                    self.btn_history, self.btn_help, self.btn_advanced):
-            _b.setMinimumWidth(140)
-            _b.setFixedHeight(36)
+            _b.setMinimumWidth(150)
+            _b.setMinimumHeight(40)
 
         bottom.addStretch(1)
         bottom.addWidget(self.btn_scan)
@@ -170,8 +226,9 @@ class HomePage(QWidget):
         bottom.addSpacing(12)
         bottom.addWidget(self.btn_advanced)
         bottom.addStretch(1)
-        layout.addLayout(bottom)
+        bottom_inner.addLayout(bottom)
 
+        layout.addWidget(bottom_card)
         layout.addStretch(1)
 
     # -------- 数据加载 --------
@@ -204,7 +261,6 @@ class HomePage(QWidget):
         if not root:
             QMessageBox.warning(self, "提示", "请先选择根目录")
             return
-        import os
         if not os.path.isdir(root):
             try:
                 os.makedirs(root, exist_ok=True)
@@ -251,15 +307,54 @@ class HomePage(QWidget):
         self.request_batch.emit()
 
     def _click_scan_import(self):
+        """扫描订单根目录下的业务员/客户结构。
+
+        本轮新增友好提示：
+        - 若订单根目录不存在或为空，提醒用户先整理订单目录；
+        - 若用户未勾选任何文件夹，提示"未选择任何业务员"而不是静默返回。
+        """
         if not self._check_root():
             return
         self._auto_save_root_if_needed()
+
+        # 先检查订单根目录是否存在且非空，否则弹出友好提示
+        order_root = os.path.join(
+            self.storage.root_dir, self.storage.order_root_folder
+        )
+        if not os.path.isdir(order_root):
+            QMessageBox.information(
+                self, "暂无可扫描内容",
+                f"未找到订单根目录：\n{order_root}\n\n"
+                "请先在该根目录下创建「订单根文件夹」"
+                "（默认为"
+                f" {self.storage.order_root_folder}），"
+                "并将业务员/客户文件夹整理到其中。"
+            )
+            return
+        try:
+            items = [n for n in os.listdir(order_root)
+                     if os.path.isdir(os.path.join(order_root, n))]
+        except Exception as e:
+            QMessageBox.warning(self, "提示", f"读取订单根目录失败：{e}")
+            return
+        if not items:
+            QMessageBox.information(
+                self, "暂无可扫描内容",
+                f"订单根目录「{order_root}」下没有业务员文件夹。\n\n"
+                "请先将业务员/客户文件夹放入该目录后再扫描。"
+            )
+            return
+
         from ..dialogs.scan_import import ScanImportDialog
         dlg = ScanImportDialog(self.storage, parent=self)
         if dlg.exec_() != dlg.Accepted:
             return
         rel_paths = dlg.get_selected_rel_paths()
         if not rel_paths:
+            QMessageBox.information(
+                self, "提示",
+                "未选择任何业务员文件夹。若需导入，请在扫描结果中勾选后再点击确定。"
+            )
             return
         # 询问是否覆盖已有同名业务员
         overwrite = False
