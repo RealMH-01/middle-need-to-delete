@@ -29,6 +29,9 @@ Thumbs.db
 # 本地配置
 .order_tool/
 
+# 演示数据（由 generate_demo_data.py 生成）
+demo_company/
+
 # 核心转储
 /core
 /core.*

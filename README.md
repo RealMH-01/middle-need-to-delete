@@ -80,6 +80,29 @@ pyinstaller --noconfirm --onefile --windowed --name "订单文件夹工具" main
 
 打包完成后，可执行文件位于 `dist/订单文件夹工具.exe`。
 
+### 面试/演示环境搭建
+
+运行以下命令一键生成模拟数据：
+
+```bash
+python generate_demo_data.py
+```
+
+脚本会在项目根目录下创建 `demo_company/`，包含：
+
+- 订单根文件夹 `1订单/` 下的 5 位业务员（其中 2 位位于「华南分公司」下）、多个客户与订单；
+- `模板文件/` 目录下的空模板文件（含通用 / 外贸通用 / 华北工厂 / 华南工厂）；
+- `.order_tool/` 目录下的 `config.json`、`salespersons.json`、`history.json` 及标准模板；
+- 同时会把 `~/.order_tool_bootstrap.json` 指向这个演示目录。
+
+生成完成后，直接运行 `python main.py` 即可体验完整功能，无需手动配置。
+
+也可以指定生成目录：
+
+```bash
+python generate_demo_data.py /path/to/your_demo_dir
+```
+
 ### 第四步：运行
 
 1. 进入项目下的 `dist` 文件夹。
