@@ -45,56 +45,59 @@ def build_context(order: Dict[str, Any]) -> Dict[str, str]:
         "<产品信息>": order.get("product_info", ""),
         "<日期>": datetime.now().strftime("%Y%m%d"),
         "<业务员>": order.get("salesperson", ""),
-        "<HRXY编号>": order.get("shxy_no", "HRXY"),
+        "<自定义编号>": order.get("custom_no", ""),
     }
 
 
 # ------------------------------------------------------------------
 # 产地匹配
 # ------------------------------------------------------------------
-# product_category: "环氧树脂" → 华北工厂；"其他产品" → 华南工厂
-ORIGIN_MAP = {
-    "环氧树脂": "华北工厂",
-    "其他产品": "华南工厂",
-}
-
-# 华北工厂、华南工厂的文件名扩展名约定（参考需求 §9.1）
-ORIGIN_FILE_EXT = {
-    ("华北工厂", "外贸生产"): ".doc",
-    ("华北工厂", "外贸发货"): ".docx",
-    ("华北工厂", "内贸生产"): ".xlsx",
-    ("华北工厂", "内贸发货"): ".xlsx",
-    ("华南工厂", "外贸生产"): ".xlsx",
-    ("华南工厂", "外贸发货"): ".xlsx",
-    ("华南工厂", "内贸生产"): ".xlsx",  # 需求中"其他产品+内贸"没有模板，但为安全起见保留
-    ("华南工厂", "内贸发货"): ".xlsx",
-}
+# 说明：产品类别 → 产地 的映射，以及产地+文档类型 → 文件扩展名的映射，
+# 都已从代码中搬到 config.json（字段：origin_map / origin_file_ext），
+# 以便任何公司不改代码即可自定义。调用方需从 storage.load_config() 读取
+# 这两个字段并传入 resolve_file_template / resolve_filename_with_ext。
 
 
-def resolve_file_template(tmpl: Optional[str], product_category: str) -> Optional[str]:
+def resolve_file_template(tmpl: Optional[str],
+                          product_category: str,
+                          origin_map: Dict[str, str],
+                          origin_file_ext: Dict[str, str]) -> Optional[str]:
     """把 file_template 中的 [产地] 标记替换成实际子目录+文件名。
 
-    若无 [产地] 标记，直接返回 tmpl。
+    :param tmpl: 原始模板字符串，如 "[产地]外贸生产"。
+    :param product_category: 订单的产品类别。
+    :param origin_map: 产品类别 → 产地 的映射字典
+                       （来自 config.json 的 origin_map 字段）。
+    :param origin_file_ext: "产地/文档类型" → ".ext" 的映射字典
+                            （来自 config.json 的 origin_file_ext 字段）。
+    :return: 形如 "华北工厂/华北工厂外贸生产.doc" 的相对路径；若无 [产地]
+             标记则原样返回 tmpl；若无法解析则返回 None。
     """
     if not tmpl:
         return tmpl
     if "[产地]" not in tmpl:
         return tmpl
 
-    origin = ORIGIN_MAP.get(product_category)
+    if not origin_map:
+        return None
+    origin = origin_map.get(product_category)
     if not origin:
-        return None  # 未知产品类别
+        return None  # 未知产品类别或 origin_map 中没有配置
 
     # 形如 "[产地]外贸生产" → "华北工厂/华北工厂外贸生产.doc"
     suffix = tmpl.replace("[产地]", "")  # 如 "外贸生产"
-    ext = ORIGIN_FILE_EXT.get((origin, suffix))
+    if not origin_file_ext:
+        return None
+    ext = origin_file_ext.get(f"{origin}/{suffix}")
     if not ext:
         return None
     return f"{origin}/{origin}{suffix}{ext}"
 
 
 def resolve_filename_with_ext(filename: str, file_template: Optional[str],
-                              product_category: str) -> str:
+                              product_category: str,
+                              origin_map: Dict[str, str],
+                              origin_file_ext: Dict[str, str]) -> str:
     """
     ref_files 里 filename 可能没有后缀（如"生产通知单-<订单号>"），
     这时需要从模板文件路径取扩展名。
@@ -102,7 +105,8 @@ def resolve_filename_with_ext(filename: str, file_template: Optional[str],
     if "." in os.path.basename(filename):
         return filename
     # 没有扩展名 → 看模板
-    resolved = resolve_file_template(file_template, product_category)
+    resolved = resolve_file_template(file_template, product_category,
+                                     origin_map, origin_file_ext)
     if resolved:
         ext = os.path.splitext(resolved)[1]
         if ext:
@@ -254,7 +258,9 @@ def copy_template_files(base_path: str,
                         template_folders: List[Dict[str, Any]],
                         template_files_dir: Optional[str],
                         ctx: Dict[str, str],
-                        product_category: str) -> List[Dict[str, Any]]:
+                        product_category: str,
+                        origin_map: Dict[str, str],
+                        origin_file_ext: Dict[str, str]) -> List[Dict[str, Any]]:
     """
     复制模板文件到目标文件夹并重命名。
     返回复制结果列表：
@@ -274,7 +280,8 @@ def copy_template_files(base_path: str,
             file_template = rf.get("file_template")
             if not file_template:
                 continue
-            resolved = resolve_file_template(file_template, product_category)
+            resolved = resolve_file_template(file_template, product_category,
+                                             origin_map, origin_file_ext)
             if not resolved:
                 results.append({
                     "folder": str(target_folder),
@@ -334,6 +341,8 @@ def generate_checklist_excel(order_folder_path: str,
                               copy_results: List[Dict[str, Any]],
                               ctx: Dict[str, str],
                               product_category: str,
+                              origin_map: Dict[str, str],
+                              origin_file_ext: Dict[str, str],
                               base_path: Optional[str] = None) -> str:
     """在订单根目录（order_folder_path）生成"文件清单-<订单号>.xlsx"，返回文件路径。
 
@@ -398,7 +407,8 @@ def generate_checklist_excel(order_folder_path: str,
             raw_name = rf.get("filename", "")
             file_template = rf.get("file_template")
             filled_name = replace_placeholders(raw_name, ctx)
-            resolved_tpl = resolve_file_template(file_template, product_category)
+            resolved_tpl = resolve_file_template(file_template, product_category,
+                                                 origin_map, origin_file_ext)
             # 对无后缀文件名补上模板文件的扩展名
             if "." not in os.path.basename(filled_name) and resolved_tpl:
                 filled_name += os.path.splitext(resolved_tpl)[1]
@@ -447,7 +457,9 @@ def generate_checklist_excel(order_folder_path: str,
 def execute_build(order: Dict[str, Any],
                   template: Dict[str, Any],
                   base_path: str,
-                  template_files_dir: Optional[str]) -> Dict[str, Any]:
+                  template_files_dir: Optional[str],
+                  origin_map: Optional[Dict[str, str]] = None,
+                  origin_file_ext: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
     """
     执行整套流程：
     1. 展开模板
@@ -455,8 +467,20 @@ def execute_build(order: Dict[str, Any],
     3. 复制模板文件
     4. 生成 Excel 清单
 
+    ``origin_map`` / ``origin_file_ext`` 已从 config.json 读取并传入；
+    为保持向后兼容（例如 test_core.py 的旧签名），两者均提供默认值：
+    None 时使用 storage 中的默认映射。
     返回详细结果字典。
     """
+    # 向后兼容：测试脚本可能没传 origin_map/origin_file_ext，这里回退到默认值。
+    if origin_map is None or origin_file_ext is None:
+        # 延迟导入以避免循环依赖
+        from .storage import DEFAULT_ORIGIN_MAP, DEFAULT_ORIGIN_FILE_EXT
+        if origin_map is None:
+            origin_map = dict(DEFAULT_ORIGIN_MAP)
+        if origin_file_ext is None:
+            origin_file_ext = dict(DEFAULT_ORIGIN_FILE_EXT)
+
     ctx = build_context(order)
     needs_inspection = bool(order.get("needs_inspection", False))
     product_category = order.get("product_category", "")
@@ -469,7 +493,8 @@ def execute_build(order: Dict[str, Any],
     created, skipped = create_folders(base_path, template_folders)
 
     copy_results = copy_template_files(
-        base_path, template_folders, template_files_dir, ctx, product_category
+        base_path, template_folders, template_files_dir, ctx,
+        product_category, origin_map, origin_file_ext
     )
 
     # 订单号根目录（客户目录下的订单号文件夹）
@@ -484,7 +509,8 @@ def execute_build(order: Dict[str, Any],
     try:
         checklist_path = generate_checklist_excel(
             order_folder_path, order_no, template_folders, copy_results,
-            ctx, product_category, base_path=base_path
+            ctx, product_category, origin_map, origin_file_ext,
+            base_path=base_path,
         )
     except Exception as e:
         checklist_path = f"生成Excel清单失败: {e}"

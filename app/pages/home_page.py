@@ -22,6 +22,8 @@ class HomePage(QWidget):
     salespersons_changed = pyqtSignal()
     root_dir_changed = pyqtSignal(str)
     template_dir_changed = pyqtSignal(str)
+    # 高级设置保存后触发，通知主窗口刷新相关页面
+    config_changed = pyqtSignal()
 
     def __init__(self, storage, parent=None):
         super().__init__(parent)
@@ -76,7 +78,7 @@ class HomePage(QWidget):
         lbl2 = QLabel("模板文件目录：")
         lbl2.setObjectName("SectionLabel")
         self.tpl_edit = QLineEdit()
-        self.tpl_edit.setPlaceholderText("存放通用 / 外贸通用 / 华北工厂 / 华南工厂 模板文件的目录（可选）")
+        self.tpl_edit.setPlaceholderText("存放模板文件的目录（可选，按「产地/文件」的子目录结构组织）")
         btn_browse_tpl = QPushButton("浏览…")
         btn_browse_tpl.clicked.connect(self._browse_tpl)
         btn_save_tpl = QPushButton("保存")
@@ -88,7 +90,7 @@ class HomePage(QWidget):
         cfg_layout.addWidget(btn_browse_tpl, 1, 2)
         cfg_layout.addWidget(btn_save_tpl, 1, 3)
 
-        tip = QLabel("提示：模板目录结构请参考 README，如：\n  通用/CG.xlsx   外贸通用/CI.xlsx   华北工厂/华北工厂外贸生产.doc   华南工厂/华南工厂外贸生产.xlsx")
+        tip = QLabel("提示：模板目录结构请参考 README。子目录名称需与「⚙ 高级设置」中的产地配置保持一致。")
         tip.setStyleSheet("color:#666666;")
         cfg_layout.addWidget(tip, 2, 1, 1, 3)
 
@@ -145,9 +147,13 @@ class HomePage(QWidget):
         self.btn_help.setObjectName("SecondaryButton")
         self.btn_help.clicked.connect(self.request_help.emit)
 
+        self.btn_advanced = QPushButton("⚙ 高级设置")
+        self.btn_advanced.setObjectName("SecondaryButton")
+        self.btn_advanced.clicked.connect(self._click_advanced_settings)
+
         # 底部按钮等宽整齐
         for _b in (self.btn_scan, self.btn_cleanup, self.btn_templates,
-                   self.btn_history, self.btn_help):
+                   self.btn_history, self.btn_help, self.btn_advanced):
             _b.setMinimumWidth(140)
             _b.setFixedHeight(36)
 
@@ -161,6 +167,8 @@ class HomePage(QWidget):
         bottom.addWidget(self.btn_history)
         bottom.addSpacing(12)
         bottom.addWidget(self.btn_help)
+        bottom.addSpacing(12)
+        bottom.addWidget(self.btn_advanced)
         bottom.addStretch(1)
         layout.addLayout(bottom)
 
@@ -301,6 +309,20 @@ class HomePage(QWidget):
         self.btn_history.setEnabled(ok)
         # 帮助页面不需要根目录，始终可点
         self.btn_help.setEnabled(True)
+        # 高级设置需要先设置根目录（config.json 才有地方写）
+        if hasattr(self, "btn_advanced"):
+            self.btn_advanced.setEnabled(ok)
+
+    # -------- 高级设置 --------
+    def _click_advanced_settings(self):
+        if not self._check_root():
+            return
+        self._auto_save_root_if_needed()
+        from ..dialogs.advanced_settings import AdvancedSettingsDialog
+        dlg = AdvancedSettingsDialog(self.storage, parent=self)
+        if dlg.exec_() == dlg.Accepted:
+            # 通知主窗口刷新相关页面（例如产品类别下拉框）
+            self.config_changed.emit()
 
     # -------- 整理已有订单文件夹（功能 D） --------
     def _click_cleanup(self):
@@ -345,7 +367,7 @@ class HomePage(QWidget):
 
         # 订单号
         edit_order_no = QLineEdit()
-        edit_order_no.setPlaceholderText("例如 HR-NEW001NH")
+        edit_order_no.setPlaceholderText("例如 ORD-2026001")
         form.addRow("订单号：", edit_order_no)
 
         # 客户名称
@@ -373,9 +395,12 @@ class HomePage(QWidget):
             cmb_template.addItem(label)
         form.addRow("使用模板：", cmb_template)
 
-        # 产品类别
+        # 产品类别（从 config.json 的 origin_map 动态读取）
         cmb_cat = QComboBox()
-        cmb_cat.addItems(["环氧树脂", "其他产品"])
+        cfg_home = self.storage.load_config() if self.storage else {}
+        cat_opts = list((cfg_home.get("origin_map") or {}).keys())
+        if cat_opts:
+            cmb_cat.addItems(cat_opts)
         form.addRow("产品类别：", cmb_cat)
 
         btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -419,6 +444,7 @@ class HomePage(QWidget):
         }
         ctx = folder_builder.build_context(order)
 
+        cfg_cleanup = self.storage.load_config()
         FolderCleanupDialog(
             order_folder_path=order_folder,
             order_no=order_no,
@@ -427,4 +453,6 @@ class HomePage(QWidget):
             parent=self,
             product_category=order["product_category"],
             needs_inspection=False,
+            origin_map=cfg_cleanup.get("origin_map") or {},
+            origin_file_ext=cfg_cleanup.get("origin_file_ext") or {},
         ).exec_()

@@ -175,10 +175,13 @@ class BatchPage(QWidget):
         # 客户PO号
         self.table.setItem(r, 5, QTableWidgetItem(data.get("po_no", "") if data else ""))
 
-        # 产品类别
+        # 产品类别（从 config.json 的 origin_map 动态读取）
         cmb_cat = QComboBox()
-        cmb_cat.addItems(["环氧树脂", "其他产品"])
-        if data and data.get("product_category") in ("环氧树脂", "其他产品"):
+        cfg = self.storage.load_config() if self.storage else {}
+        category_options = list((cfg.get("origin_map") or {}).keys())
+        if category_options:
+            cmb_cat.addItems(category_options)
+        if data and data.get("product_category") in category_options:
             cmb_cat.setCurrentText(data["product_category"])
         self.table.setCellWidget(r, 6, cmb_cat)
 
@@ -238,10 +241,16 @@ class BatchPage(QWidget):
             cell.fill = PatternFill("solid", fgColor="2196F3")
             cell.alignment = Alignment(horizontal="center", vertical="center")
         # 示例（业务员列为空时，使用页面顶部选择的业务员）
-        ws.append(["外贸", "HR-EXP2508056NH", "ACME CO., LTD.", "环氧树脂 200KG",
-                   "PO-2026-001", "环氧树脂", "是", "张三"])
-        ws.append(["内贸", "HR-DOM2508057", "某某化工", "环氧树脂 1T",
-                   "", "环氧树脂", "否", ""])
+        # 产品类别示例取 config.json 中 origin_map 的第一个 key（保持与当前配置一致）
+        cfg_sample = self.storage.load_config() if self.storage else {}
+        sample_category = ""
+        om_sample = cfg_sample.get("origin_map") or {}
+        if om_sample:
+            sample_category = next(iter(om_sample.keys()))
+        ws.append(["外贸", "EXP-2026001", "示例客户A", "产品示例 200KG",
+                   "PO-2026-001", sample_category, "是", "示例业务员"])
+        ws.append(["内贸", "DOM-2026002", "示例客户B", "产品示例 1T",
+                   "", sample_category, "否", ""])
         widths = [12, 22, 24, 28, 18, 12, 14, 12]
         from openpyxl.utils import get_column_letter
         for i, w in enumerate(widths, start=1):
@@ -277,6 +286,12 @@ class BatchPage(QWidget):
             i_insp = idx("商检")
             i_sp = idx("业务员")
 
+            # 合法的产品类别列表从 config.json 的 origin_map 动态读取
+            cfg_import = self.storage.load_config() if self.storage else {}
+            valid_categories = list((cfg_import.get("origin_map") or {}).keys())
+            # fallback 默认值：origin_map 的第一个 key（若有），否则空串
+            default_category = valid_categories[0] if valid_categories else ""
+
             count = 0
             for r in rows[1:]:
                 if not r or all(x is None or str(x).strip() == "" for x in r):
@@ -287,11 +302,11 @@ class BatchPage(QWidget):
                     "customer": (str(r[i_cust]).strip() if i_cust >= 0 and r[i_cust] else ""),
                     "product_info": (str(r[i_prod]).strip() if i_prod >= 0 and r[i_prod] else ""),
                     "po_no": (str(r[i_po]).strip() if i_po >= 0 and r[i_po] else ""),
-                    "product_category": (str(r[i_cat]).strip() if i_cat >= 0 and r[i_cat] else "环氧树脂"),
+                    "product_category": (str(r[i_cat]).strip() if i_cat >= 0 and r[i_cat] else default_category),
                     "salesperson": (str(r[i_sp]).strip() if i_sp >= 0 and r[i_sp] else ""),
                 }
-                if data["product_category"] not in ("环氧树脂", "其他产品"):
-                    data["product_category"] = "环氧树脂"
+                if valid_categories and data["product_category"] not in valid_categories:
+                    data["product_category"] = default_category
                 if data["order_type"] not in ("外贸", "内贸"):
                     data["order_type"] = "外贸"
                 insp_raw = str(r[i_insp]).strip() if i_insp >= 0 and r[i_insp] is not None else ""
@@ -399,7 +414,9 @@ class BatchPage(QWidget):
                     continue
                 result = folder_builder.execute_build(
                     order=od, template=tpl, base_path=base_path,
-                    template_files_dir=tpl_dir)
+                    template_files_dir=tpl_dir,
+                    origin_map=cfg.get("origin_map") or {},
+                    origin_file_ext=cfg.get("origin_file_ext") or {})
                 # 历史
                 self.storage.append_history({
                     "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),

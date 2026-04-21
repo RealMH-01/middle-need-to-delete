@@ -59,6 +59,7 @@ class MainWindow(QMainWindow):
         self.page_home.request_help.connect(lambda: self._goto(PAGE_HELP))
         self.page_home.salespersons_changed.connect(self._on_salespersons_changed)
         self.page_home.root_dir_changed.connect(self._on_root_changed)
+        self.page_home.config_changed.connect(self._on_config_changed)
 
         self.page_single.request_back.connect(lambda: self._goto(PAGE_HOME))
         self.page_batch.request_back.connect(lambda: self._goto(PAGE_HOME))
@@ -111,3 +112,13 @@ class MainWindow(QMainWindow):
                 except Exception:
                     pass
         self.statusBar().showMessage("业务员/客户列表已更新", 5000)
+
+    def _on_config_changed(self):
+        """高级设置被保存后，通知相关页面刷新（例如产品类别下拉框）。"""
+        for p in (self.page_single, self.page_batch):
+            if hasattr(p, "refresh"):
+                try:
+                    p.refresh()
+                except Exception:
+                    pass
+        self.statusBar().showMessage("高级设置已保存，相关页面已刷新", 5000)

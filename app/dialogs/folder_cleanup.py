@@ -64,9 +64,14 @@ def _extract_keyword_prefix(filled_name: str) -> str:
 def _build_expected_file_list(template: Dict[str, Any],
                               ctx: Dict[str, str],
                               product_category: str,
-                              needs_inspection: bool) -> List[Dict[str, Any]]:
+                              needs_inspection: bool,
+                              origin_map: Dict[str, str],
+                              origin_file_ext: Dict[str, str]) -> List[Dict[str, Any]]:
     """
     从模板展开得到期望文件清单（每项描述该文件应该在哪、叫什么）。
+
+    :param origin_map / origin_file_ext: 由调用方从 config.json 读取后
+        传入。模块级函数没有 ``self.storage``，因此需要外部显式提供。
 
     返回列表，每项包含：
       - folder_rel: str，相对「订单号文件夹」的子目录（如 "SD"、"货代资料/唛头"、""=根目录）
@@ -109,7 +114,8 @@ def _build_expected_file_list(template: Dict[str, Any],
             # 补全扩展名
             if "." not in os.path.basename(filled):
                 resolved_tpl = folder_builder.resolve_file_template(
-                    rf.get("file_template"), product_category)
+                    rf.get("file_template"), product_category,
+                    origin_map, origin_file_ext)
                 if resolved_tpl:
                     filled += os.path.splitext(resolved_tpl)[1]
                 else:
@@ -257,8 +263,10 @@ class FolderCleanupDialog(QDialog):
     def __init__(self, order_folder_path: str, order_no: str,
                  template: Dict[str, Any], ctx: Dict[str, str],
                  parent=None,
-                 product_category: str = "环氧树脂",
-                 needs_inspection: bool = False):
+                 product_category: str = "",
+                 needs_inspection: bool = False,
+                 origin_map: Optional[Dict[str, str]] = None,
+                 origin_file_ext: Optional[Dict[str, str]] = None):
         super().__init__(parent)
         self.setWindowTitle(f"整理订单文件夹 - {order_no}")
         self.resize(960, 600)
@@ -269,8 +277,22 @@ class FolderCleanupDialog(QDialog):
         self._product_category = product_category
         self._needs_inspection = needs_inspection
 
+        # 产地映射从 config.json 读取后由调用方传入；为安全起见，
+        # 若未传入则回退到 storage 中的默认值。
+        if origin_map is None or origin_file_ext is None:
+            from ..core.storage import (
+                DEFAULT_ORIGIN_MAP, DEFAULT_ORIGIN_FILE_EXT,
+            )
+            if origin_map is None:
+                origin_map = dict(DEFAULT_ORIGIN_MAP)
+            if origin_file_ext is None:
+                origin_file_ext = dict(DEFAULT_ORIGIN_FILE_EXT)
+        self._origin_map = origin_map
+        self._origin_file_ext = origin_file_ext
+
         self._expected = _build_expected_file_list(
-            template, self._ctx, product_category, needs_inspection
+            template, self._ctx, product_category, needs_inspection,
+            origin_map, origin_file_ext,
         )
         self._actual = _scan_actual_files(order_folder_path)
         self._plans = _plan_cleanup(self._actual, self._expected)

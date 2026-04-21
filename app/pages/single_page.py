@@ -95,7 +95,7 @@ class SinglePage(QWidget):
 
         id_layout.addWidget(QLabel("产品类别："), 1, 4)
         self.cmb_category = QComboBox()
-        self.cmb_category.addItems(["环氧树脂", "其他产品"])
+        # 产品类别从 config.json 的 origin_map 动态读取，在 refresh() 中填充
         id_layout.addWidget(self.cmb_category, 1, 5)
 
         btn_preview = QPushButton("预览模板")
@@ -113,7 +113,7 @@ class SinglePage(QWidget):
 
         form.addWidget(QLabel("订单号*："), 0, 0)
         self.edit_order_no = QLineEdit()
-        self.edit_order_no.setPlaceholderText("例如 HR-EXP2508056NH")
+        self.edit_order_no.setPlaceholderText("例如 ORD-2026001")
         form.addWidget(self.edit_order_no, 0, 1, 1, 3)
 
         form.addWidget(QLabel("客户名称*："), 1, 0)
@@ -154,8 +154,31 @@ class SinglePage(QWidget):
     # ============== 外部入口 ==============
     def refresh(self):
         """切换到本页时调用"""
+        self._reload_product_categories()
         self._load_salespersons()
         self._on_order_type_changed()
+
+    def _reload_product_categories(self):
+        """根据 config.json 的 origin_map 动态刷新"产品类别"下拉框。"""
+        if not hasattr(self, "cmb_category") or self.cmb_category is None:
+            return
+        cfg = self.storage.load_config() if self.storage else {}
+        origin_map = cfg.get("origin_map", {}) or {}
+        categories = list(origin_map.keys())
+        current = self.cmb_category.currentText()
+        self.cmb_category.blockSignals(True)
+        self.cmb_category.clear()
+        if categories:
+            self.cmb_category.addItems(categories)
+            # 尝试恢复之前的选择，否则用 config 里的 last_product_category
+            last = cfg.get("last_product_category", "")
+            if current in categories:
+                self.cmb_category.setCurrentText(current)
+            elif last in categories:
+                self.cmb_category.setCurrentText(last)
+            else:
+                self.cmb_category.setCurrentIndex(0)
+        self.cmb_category.blockSignals(False)
 
     # ============== 数据加载 ==============
     def _load_salespersons(self):
@@ -363,6 +386,8 @@ class SinglePage(QWidget):
             template=self._current_template,
             base_path=base_path,
             template_files_dir=cfg.get("template_files_dir") or None,
+            origin_map=cfg.get("origin_map") or {},
+            origin_file_ext=cfg.get("origin_file_ext") or {},
         )
 
         # 保存"上次选择"
@@ -441,14 +466,22 @@ class SinglePage(QWidget):
         btn_cleanup.setObjectName("SecondaryButton")
 
         def _open_cleanup():
+            cfg2 = self.storage.load_config()
+            # product_category 默认值取 origin_map 的第一个 key（若有），否则空串
+            default_cat = ""
+            om = cfg2.get("origin_map", {}) or {}
+            if om:
+                default_cat = next(iter(om.keys()))
             FolderCleanupDialog(
                 order_folder_path=base_path,
                 order_no=order.get("order_no", ""),
                 template=self._current_template,
                 ctx=ctx or folder_builder.build_context(order),
                 parent=dlg,
-                product_category=order.get("product_category", "环氧树脂"),
+                product_category=order.get("product_category", default_cat),
                 needs_inspection=bool(order.get("needs_inspection", False)),
+                origin_map=om,
+                origin_file_ext=cfg2.get("origin_file_ext", {}) or {},
             ).exec_()
         btn_cleanup.clicked.connect(_open_cleanup)
 
@@ -481,11 +514,10 @@ class SinglePage(QWidget):
             "  <产品信息>  —— 产品信息（如有）\n"
             "  <业务员>    —— 当前选择的业务员姓名\n"
             "  <日期>      —— 创建当天日期 YYYYMMDD\n"
-            "  <HRXY编号>  —— 自动占位，需要时手动修改\n\n"
+            "  <自定义编号> —— 自定义编号（可选）\n\n"
             "在【模板管理】中可以自由编辑每个文件的 filename 字段，\n"
             "例如：CI-<订单号>-<客户名称>.xlsx\n\n"
-            "file_template 中的 [产地] 标记会根据「产品类别」自动替换：\n"
-            "  • 环氧树脂   → 华北工厂\n"
-            "  • 其他产品 → 华南工厂"
+            "file_template 中的 [产地] 标记会根据「产品类别」自动替换，\n"
+            "产品类别与产地的对应关系可在首页「⚙ 高级设置」中配置。"
         )
         QMessageBox.information(self, "命名变量说明", msg)

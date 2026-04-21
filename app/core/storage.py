@@ -34,6 +34,44 @@ STANDARD_DOMESTIC_FILE = "standard_domestic.json"
 
 
 # ------------------------------------------------------------------
+# config.json 默认值（用于首次初始化及旧版本升级兼容补写）
+# ------------------------------------------------------------------
+DEFAULT_ORIGIN_MAP = {
+    "环氧树脂": "华北工厂",
+    "其他产品": "华南工厂",
+}
+
+DEFAULT_ORIGIN_FILE_EXT = {
+    "华北工厂/外贸生产": ".doc",
+    "华北工厂/外贸发货": ".docx",
+    "华北工厂/内贸生产": ".xlsx",
+    "华北工厂/内贸发货": ".xlsx",
+    "华南工厂/外贸生产": ".xlsx",
+    "华南工厂/外贸发货": ".xlsx",
+    "华南工厂/内贸生产": ".xlsx",
+    "华南工厂/内贸发货": ".xlsx",
+}
+
+DEFAULT_ORDER_ROOT_FOLDER = "1订单"
+DEFAULT_MID_LAYER_KEYWORDS = ["进行", "订单"]
+
+
+def _config_defaults() -> Dict[str, Any]:
+    """返回 config.json 中"通用化改造"相关字段的默认值（深拷贝）。
+
+    用于：
+    1. 首次创建 config.json 时写入默认值；
+    2. 旧版 config.json 中缺少这些字段时自动补写。
+    """
+    return {
+        "origin_map": copy.deepcopy(DEFAULT_ORIGIN_MAP),
+        "origin_file_ext": copy.deepcopy(DEFAULT_ORIGIN_FILE_EXT),
+        "order_root_folder": DEFAULT_ORDER_ROOT_FOLDER,
+        "mid_layer_keywords": list(DEFAULT_MID_LAYER_KEYWORDS),
+    }
+
+
+# ------------------------------------------------------------------
 # 工具函数
 # ------------------------------------------------------------------
 def _safe_read_json(path: Path, default: Any) -> Any:
@@ -107,7 +145,7 @@ class Storage:
 
         # 其它文件初始化
         if not self.config_file.exists():
-            _safe_write_json(self.config_file, {
+            init_cfg = {
                 "root_dir": root_dir,
                 "template_files_dir": "",
                 "last_salesperson": "",
@@ -115,11 +153,25 @@ class Storage:
                 "last_order_type": "外贸",
                 "last_product_category": "环氧树脂",
                 "operator": os.environ.get("USERNAME") or os.environ.get("USER") or "",
-            })
+            }
+            # 合并通用化改造相关的默认字段（origin_map / origin_file_ext / ...）
+            init_cfg.update(_config_defaults())
+            _safe_write_json(self.config_file, init_cfg)
         else:
             # 更新 root_dir
             cfg = self.load_config()
             cfg["root_dir"] = root_dir
+            self.save_config(cfg)
+
+        # 旧版本升级兼容：无论 config.json 是否新建，都检查并补写缺失的默认字段
+        cfg = self.load_config()
+        defaults = _config_defaults()
+        changed = False
+        for key, default_val in defaults.items():
+            if key not in cfg:
+                cfg[key] = default_val
+                changed = True
+        if changed:
             self.save_config(cfg)
 
         if not self.salespersons_file.exists():
@@ -240,17 +292,25 @@ class Storage:
         return []
 
     # -------- 订单路径拼接 --------
-    ORDER_ROOT_FOLDER = "1订单"
+    @property
+    def order_root_folder(self) -> str:
+        """从 config.json 读取订单根文件夹名（默认 "1订单"）。
+
+        为了兼容"公司订单根目录可自定义"的场景，这个值改成运行时从
+        config 读取，而不是硬编码的类常量。
+        """
+        cfg = self.load_config()
+        return cfg.get("order_root_folder", DEFAULT_ORDER_ROOT_FOLDER)
 
     def build_customer_dir(self, salesperson: str, customer: str) -> str:
         """
         根据业务员+客户，计算客户目录绝对路径：
-            <根目录>/1订单/<业务员rel_path>/[<mid_layer>/]<客户名>/
+            <根目录>/<订单根文件夹>/<业务员rel_path>/[<mid_layer>/]<客户名>/
         订单号文件夹由 folder_builder 创建在此目录下。
         """
         if not self.root_dir:
             return ""
-        parts = [self.root_dir, self.ORDER_ROOT_FOLDER]
+        parts = [self.root_dir, self.order_root_folder]
         sp = self.get_salesperson(salesperson)
         if sp:
             rel = (sp.get("rel_path") or sp["name"]).strip()
@@ -277,19 +337,27 @@ class Storage:
         return path
 
     # -------- 扫描导入 --------
-    @staticmethod
-    def _is_mid_layer_name(name: str) -> bool:
-        """判断是否为"进行中的订单"中间层文件夹（同时含"进行"和"订单"）"""
-        return "进行" in name and "订单" in name
+    def _is_mid_layer_name(self, name: str) -> bool:
+        """判断是否为"中间层"文件夹。
+
+        关键词列表从 config.json 的 ``mid_layer_keywords`` 读取，
+        仅当文件夹名同时包含所有关键词时返回 True。
+        关键词列表为空时始终返回 False（即不启用中间层识别）。
+        """
+        cfg = self.load_config()
+        keywords = cfg.get("mid_layer_keywords", list(DEFAULT_MID_LAYER_KEYWORDS))
+        if not keywords:
+            return False
+        return all(kw in name for kw in keywords)
 
     def scan_order_root(self) -> List[str]:
         """
-        扫描 <根目录>/1订单/ 下的第一层文件夹（忽略文件、隐藏目录）。
-        返回文件夹名列表。若 1订单 不存在，返回 []。
+        扫描 <根目录>/<订单根文件夹>/ 下的第一层文件夹（忽略文件、隐藏目录）。
+        返回文件夹名列表。若订单根文件夹不存在，返回 []。
         """
         if not self.root_dir:
             return []
-        order_root = Path(self.root_dir) / self.ORDER_ROOT_FOLDER
+        order_root = Path(self.root_dir) / self.order_root_folder
         if not order_root.exists() or not order_root.is_dir():
             return []
         return sorted([p.name for p in order_root.iterdir()
@@ -297,11 +365,11 @@ class Storage:
 
     def scan_subfolders(self, rel_under_order_root: str) -> List[str]:
         """
-        扫描 <根目录>/1订单/<rel>/ 下的第一层子文件夹。
+        扫描 <根目录>/<订单根文件夹>/<rel>/ 下的第一层子文件夹。
         """
         if not self.root_dir:
             return []
-        p = Path(self.root_dir) / self.ORDER_ROOT_FOLDER
+        p = Path(self.root_dir) / self.order_root_folder
         if rel_under_order_root:
             for seg in rel_under_order_root.split("/"):
                 if seg:
@@ -338,7 +406,7 @@ class Storage:
         """
         根据扫描勾选结果，导入业务员及其客户。
 
-        rel_paths: 每个元素是相对 1订单/ 的路径，如 "王明辉"、"华南分公司/赵天宇"。
+        rel_paths: 每个元素是相对订单根文件夹的路径，如 "张三"、"华南分公司/李四"。
         业务员名取路径最后一段。
         overwrite: True 则覆盖已有同名业务员的 customers / rel_path / mid_layer。
 

@@ -92,7 +92,7 @@ class FilenameEditorDialog(QDialog):
         ("<客户PO号>", False),
         ("<日期>", False),
         ("<业务员>", False),
-        ("<HRXY>", False),
+        ("<自定义编号>", False),
     ]
 
     def __init__(self, initial_name: str = "", parent=None,

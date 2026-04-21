@@ -41,8 +41,9 @@ class ScanImportDialog(QDialog):
         root = QVBoxLayout(self)
 
         # 顶部说明
+        order_root_name = self.storage.order_root_folder if self.storage else "1订单"
         intro = QLabel(
-            "程序会扫描「<b>1订单/</b>」文件夹下的所有子文件夹。<br/>"
+            f"程序会扫描「<b>{order_root_name}/</b>」文件夹下的所有子文件夹。<br/>"
             "请勾选其中<b>属于业务员</b>的文件夹；不属于业务员的（如"
             "资料文件夹、Excel 文件）不要勾选。<br/>"
             "若某个文件夹是<b>分公司</b>（例如「华南分公司」），请点开它，勾选里面的"
@@ -99,12 +100,27 @@ class ScanImportDialog(QDialog):
         self.tree.itemChanged.connect(self._on_item_changed)
         root.addWidget(self.tree, 1)
 
-        # 提示：识别规则
-        rule_tip = QLabel(
-            "客户识别规则：若业务员文件夹下有<b>同时包含「进行」和「订单」</b>"
-            "关键词的子文件夹（如「进行中订单」、「1.进行订单」），"
-            "将进入该文件夹抓取客户；否则把业务员下的子文件夹直接作为客户。"
-        )
+        # 提示：识别规则（关键词从 config.json 读取）
+        try:
+            cfg = self.storage.load_config() if self.storage else {}
+            kws = cfg.get("mid_layer_keywords", ["进行", "订单"])
+        except Exception:
+            kws = ["进行", "订单"]
+        if kws:
+            kw_str = "、".join(f"「{k}」" for k in kws)
+            rule_tip_text = (
+                f"客户识别规则：若业务员文件夹下有<b>同时包含 {kw_str}</b>"
+                "关键词的子文件夹（如「进行中订单」、「1.进行订单」），"
+                "将进入该文件夹抓取客户；否则把业务员下的子文件夹直接作为客户。"
+                "<br/>（中间层关键词可在首页「⚙ 高级设置」中修改）"
+            )
+        else:
+            rule_tip_text = (
+                "客户识别规则：当前未配置中间层关键词，"
+                "程序会直接把业务员下的所有子文件夹作为客户。"
+                "<br/>（可在首页「⚙ 高级设置」中配置关键词以启用中间层识别）"
+            )
+        rule_tip = QLabel(rule_tip_text)
         rule_tip.setWordWrap(True)
         rule_tip.setStyleSheet("color:#555;font-size:12px;")
         root.addWidget(rule_tip)
@@ -131,13 +147,13 @@ class ScanImportDialog(QDialog):
             return
 
         default_order_root = os.path.join(
-            self.storage.root_dir, self.storage.ORDER_ROOT_FOLDER
+            self.storage.root_dir, self.storage.order_root_folder
         )
         if not os.path.isdir(default_order_root):
             # 提示用户手动选择
             ret = QMessageBox.question(
-                self, "未找到「1订单」文件夹",
-                f"在根目录下没有找到「{self.storage.ORDER_ROOT_FOLDER}」文件夹：\n"
+                self, f"未找到「{self.storage.order_root_folder}」文件夹",
+                f"在根目录下没有找到「{self.storage.order_root_folder}」文件夹：\n"
                 f"{default_order_root}\n\n是否手动指定订单根文件夹？",
                 QMessageBox.Yes | QMessageBox.No,
             )
@@ -153,8 +169,9 @@ class ScanImportDialog(QDialog):
         self.tree.blockSignals(False)
 
     def _browse_custom_order_root(self):
+        order_root_name = self.storage.order_root_folder if self.storage else "1订单"
         d = QFileDialog.getExistingDirectory(
-            self, "请选择订单根文件夹（通常名为 1订单）",
+            self, f"请选择订单根文件夹（通常名为 {order_root_name}）",
             self.storage.root_dir or ""
         )
         if not d:
