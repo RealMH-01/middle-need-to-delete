@@ -279,23 +279,37 @@ class FilenameEditorDialog(QDialog):
             self.accept()
 
     def _validate(self):
-        """实时校验：更新状态标签 + 启用/禁用"确认"按钮。"""
+        """实时校验：更新状态标签 + 启用/禁用"确认"按钮。
+
+        Neo-brutalism 风格：非法态用 COLOR_ACCENT（#FF6B6B）背景标记，
+        合法态用纯黑文字；不使用灰色。
+        """
         text = self.edit_preview.text()
         if not text or not text.strip():
             self.lbl_status.setText("✗ 文件名不能为空")
-            self.lbl_status.setStyleSheet("color:#DC2626;")
+            self.lbl_status.setStyleSheet(
+                "background:#FF6B6B; color:#000000;"
+                " border:2px solid #000000; padding:4px 8px;"
+                " font-weight:bold;"
+            )
             self.btn_ok.setEnabled(False)
             return
         legal = is_filename_legal(text)
         if legal:
             self.lbl_status.setText("✓ 文件名合法")
-            self.lbl_status.setStyleSheet("color:#6B7280;")
+            self.lbl_status.setStyleSheet(
+                "color:#000000; font-weight:bold;"
+            )
             self.btn_ok.setEnabled(True)
         else:
             self.lbl_status.setText(
                 f"✗ 文件名包含不允许的字符： {_ILLEGAL_CHARS_DISPLAY}"
             )
-            self.lbl_status.setStyleSheet("color:#DC2626;")
+            self.lbl_status.setStyleSheet(
+                "background:#FF6B6B; color:#000000;"
+                " border:2px solid #000000; padding:4px 8px;"
+                " font-weight:bold;"
+            )
             self.btn_ok.setEnabled(False)
 
     # ------------------------------------------------------------------

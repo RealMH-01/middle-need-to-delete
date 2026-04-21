@@ -472,6 +472,17 @@ class SinglePage(QWidget):
 
     def _append_history(self, order, result):
         cfg = self.storage.load_config()
+        # 精简 copy_results：只保留关键字段，避免 history.json 过大
+        slim_copy_results = []
+        for r in result["copy_results"]:
+            src = r.get("src", "") or ""
+            dst = r.get("dst", "") or ""
+            slim_copy_results.append({
+                "copied": bool(r.get("copied")),
+                "src": os.path.basename(src) if src else "",
+                "dst": os.path.basename(dst) if dst else "",
+                "reason": r.get("reason", ""),
+            })
         record = {
             "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "operator": cfg.get("operator", ""),
@@ -486,6 +497,13 @@ class SinglePage(QWidget):
             "created_count": len(result["created"]),
             "skipped_count": len(result["skipped"]),
             "copied_count": sum(1 for r in result["copy_results"] if r.get("copied")),
+            # 新增：完整的创建结果详情，供历史记录「详情」按钮显示
+            "detail": {
+                "created": list(result["created"]),
+                "skipped": list(result["skipped"]),
+                "copy_results": slim_copy_results,
+                "checklist_path": result.get("checklist_path", ""),
+            },
         }
         self.storage.append_history(record)
 

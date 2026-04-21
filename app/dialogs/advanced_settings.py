@@ -85,7 +85,7 @@ class AdvancedSettingsDialog(QDialog):
         g1_tip = QLabel(
             "订单所在的一级文件夹名称（如 1订单、Orders、订单管理）"
         )
-        g1_tip.setStyleSheet("color:#555;font-size:12px;")
+        g1_tip.setStyleSheet("color:#000000;font-size:12px;")
         g1_layout.addWidget(g1_tip)
         self.edit_order_root = QLineEdit()
         self.edit_order_root.setPlaceholderText("例如 1订单 / Orders / 订单管理")
@@ -100,7 +100,7 @@ class AdvancedSettingsDialog(QDialog):
             "（留空则不启用中间层识别）。用中文或英文逗号分隔。"
         )
         g2_tip.setWordWrap(True)
-        g2_tip.setStyleSheet("color:#555;font-size:12px;")
+        g2_tip.setStyleSheet("color:#000000;font-size:12px;")
         g2_layout.addWidget(g2_tip)
         self.edit_mid_kws = QLineEdit()
         self.edit_mid_kws.setPlaceholderText("例如：进行, 订单")
@@ -115,7 +115,7 @@ class AdvancedSettingsDialog(QDialog):
             "当前选择的「产品类别」查找产地，再用产地定位模板文件。"
         )
         g3_tip.setWordWrap(True)
-        g3_tip.setStyleSheet("color:#555;font-size:12px;")
+        g3_tip.setStyleSheet("color:#000000;font-size:12px;")
         g3_layout.addWidget(g3_tip)
 
         self.tbl_origin_map = QTableWidget(0, 2)
@@ -150,7 +150,7 @@ class AdvancedSettingsDialog(QDialog):
             " <code>.doc</code> / <code>.xlsx</code>）。一般不用改。"
         )
         g4_tip.setWordWrap(True)
-        g4_tip.setStyleSheet("color:#555;font-size:12px;")
+        g4_tip.setStyleSheet("color:#000000;font-size:12px;")
         g4_layout.addWidget(g4_tip)
 
         self.tbl_ext_map = QTableWidget(0, 2)

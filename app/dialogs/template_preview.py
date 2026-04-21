@@ -24,8 +24,8 @@ class TemplatePreviewDialog(QDialog):
         layout = QVBoxLayout(self)
 
         # 说明
-        tip = QLabel("📁 文件夹（蓝色）   📄 参考文件（灰色）。此预览为只读，修改请到「模板管理」页。")
-        tip.setStyleSheet("color:#555;")
+        tip = QLabel("📁 文件夹   📄 参考文件。此预览为只读，修改请到「模板管理」页。")
+        tip.setStyleSheet("color:#000000;")
         layout.addWidget(tip)
 
         self.tree = QTreeWidget()

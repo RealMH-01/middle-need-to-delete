@@ -528,6 +528,17 @@ class BatchPage(QWidget):
                     origin_map=cfg.get("origin_map") or {},
                     origin_file_ext=cfg.get("origin_file_ext") or {})
                 # 历史
+                # 精简 copy_results：只保留关键字段，避免 history.json 过大
+                slim_copy_results = []
+                for cr in result["copy_results"]:
+                    src = cr.get("src", "") or ""
+                    dst = cr.get("dst", "") or ""
+                    slim_copy_results.append({
+                        "copied": bool(cr.get("copied")),
+                        "src": os.path.basename(src) if src else "",
+                        "dst": os.path.basename(dst) if dst else "",
+                        "reason": cr.get("reason", ""),
+                    })
                 self.storage.append_history({
                     "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "operator": cfg.get("operator", ""),
@@ -542,6 +553,13 @@ class BatchPage(QWidget):
                     "created_count": len(result["created"]),
                     "skipped_count": len(result["skipped"]),
                     "copied_count": sum(1 for r in result["copy_results"] if r.get("copied")),
+                    # 新增：完整的创建结果详情，供历史记录「详情」按钮显示
+                    "detail": {
+                        "created": list(result["created"]),
+                        "skipped": list(result["skipped"]),
+                        "copy_results": slim_copy_results,
+                        "checklist_path": result.get("checklist_path", ""),
+                    },
                 })
                 self._set_status(od["row_index"],
                                  f"✅ 新建 {len(result['created'])}，跳过 {len(result['skipped'])}，复制模板 {sum(1 for r in result['copy_results'] if r.get('copied'))}",

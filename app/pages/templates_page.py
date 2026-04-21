@@ -18,6 +18,8 @@ from ..dialogs.template_preview import TemplatePreviewDialog
 
 class TemplatesPage(QWidget):
     request_back = pyqtSignal()
+    # 顶部"❓帮助"按钮：让主窗口打开帮助 DockWidget 并跳转到模板章节
+    request_help = pyqtSignal(str)
 
     def __init__(self, storage, parent=None):
         super().__init__(parent)
@@ -39,6 +41,15 @@ class TemplatesPage(QWidget):
         title.setObjectName("TitleLabel")
         top.addWidget(title)
         top.addStretch(1)
+
+        # ❓ 帮助按钮 —— 打开右侧帮助 Dock，定位到"模板管理"章节
+        btn_page_help = QPushButton("❓ 帮助")
+        btn_page_help.setObjectName("SecondaryButton")
+        btn_page_help.setToolTip("打开右侧帮助面板，查看模板管理的详细说明")
+        btn_page_help.clicked.connect(
+            lambda: self.request_help.emit("sec-templates")
+        )
+        top.addWidget(btn_page_help)
         root.addLayout(top)
 
         body = QHBoxLayout()
@@ -79,6 +90,13 @@ class TemplatesPage(QWidget):
         # 右侧预览
         right = QVBoxLayout()
         right.addWidget(QLabel("模板结构预览"))
+        # 操作提示
+        tip = QLabel(
+            "选中左边的模板查看结构。点「编辑模板」可修改文件夹和文件命名规则。"
+        )
+        tip.setStyleSheet("font-size: 12px; color: #000000;")
+        tip.setWordWrap(True)
+        right.addWidget(tip)
         self.tree = QTreeWidget()
         self.tree.setHeaderLabels(["名称", "来源"])
         self.tree.setColumnWidth(0, 360)
@@ -170,11 +188,18 @@ class TemplatesPage(QWidget):
         else:
             parent.addChild(it)
         for rf in node.get("ref_files", []) or []:
-            label = f"📄 {rf.get('filename','')}"
-            if rf.get("file_template"):
-                label += "   [模板: " + rf["file_template"] + "]"
+            label = f"📄 {rf.get('filename', '')}"
+            ft = rf.get("file_template")
+            if ft:
+                if "[产地]" in ft:
+                    label += "   [✓ 自动复制·按产品类别匹配]"
+                else:
+                    label += "   [✓ 自动复制]"
             c = QTreeWidgetItem([label, rf.get("source", "")])
             c.setForeground(0, QBrush(QColor("#555555")))
+            # 把模板文件的实际路径放到 tooltip，避免窄列溢出
+            if ft:
+                c.setToolTip(0, f"模板文件路径：{ft}")
             it.addChild(c)
         for child in node.get("children", []) or []:
             self._render_tree(it, child)

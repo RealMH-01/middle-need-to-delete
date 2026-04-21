@@ -52,7 +52,8 @@ class ScanPreviewDialog(QDialog):
 
         # 顶部提示
         self.lbl_info = QLabel("")
-        self.lbl_info.setStyleSheet("font-weight:bold;")
+        # Neo-brutalism：纯黑粗体字即可，不用额外颜色
+        self.lbl_info.setStyleSheet("font-weight:bold; color:#000000;")
         layout.addWidget(self.lbl_info)
 
         # 图例
@@ -145,24 +146,11 @@ class ScanPreviewDialog(QDialog):
             path_to_item[rel] = qt_item
             # 列出 ref_files
             for rf in it.get("ref_files", []):
-                fname = rf.get("filename", "")
-                # 功能 A：若传入 ctx，则显示替换后的真实文件名
-                if self._ctx:
-                    fname = folder_builder.replace_placeholders(fname, self._ctx)
-                has_tpl = "（有模板）" if rf.get("file_template") else ""
-                f_item = QTreeWidgetItem([f"   📄 {fname}{has_tpl}", "", rf.get("source", "")])
-                f_item.setForeground(0, QBrush(QColor("#555555")))
-                qt_item.addChild(f_item)
+                self._add_ref_file_row(qt_item, rf)
 
         # 根节点的 ref_files 也要展示
         for rf in root_node.get("ref_files", []):
-            fname = rf.get("filename", "")
-            if self._ctx:
-                fname = folder_builder.replace_placeholders(fname, self._ctx)
-            has_tpl = "（有模板）" if rf.get("file_template") else ""
-            f_item = QTreeWidgetItem([f"   📄 {fname}{has_tpl}", "", rf.get("source", "")])
-            f_item.setForeground(0, QBrush(QColor("#555555")))
-            root_qt.addChild(f_item)
+            self._add_ref_file_row(root_qt, rf)
 
         # extras
         for ex in self._extras:
@@ -175,6 +163,32 @@ class ScanPreviewDialog(QDialog):
             path_to_item[rel] = qt_item
 
         self.tree.expandAll()
+
+    def _add_ref_file_row(self, parent_qt: QTreeWidgetItem, rf: dict):
+        """在预览树中插入一条 ref_file 行。
+
+        使用人类友好的"自动复制 / 手动准备"标签取代内部路径显示，
+        完整的模板路径放到 tooltip 中。
+        """
+        fname = rf.get("filename", "")
+        if self._ctx:
+            fname = folder_builder.replace_placeholders(fname, self._ctx)
+        file_tpl = rf.get("file_template")
+        source_tag = "✓ 自动复制" if file_tpl else "手动准备"
+        f_item = QTreeWidgetItem([f"   📄 {fname}", "", source_tag])
+        f_item.setForeground(0, QBrush(QColor("#000000")))
+        # tooltip：保留模板路径与原始来源字段，信息不丢
+        tip_lines = []
+        if file_tpl:
+            tip_lines.append(f"模板文件路径：{file_tpl}")
+        src = rf.get("source", "")
+        if src:
+            tip_lines.append(f"来源：{src}")
+        if tip_lines:
+            tip = "\n".join(tip_lines)
+            f_item.setToolTip(0, tip)
+            f_item.setToolTip(2, tip)
+        parent_qt.addChild(f_item)
 
     def _status_label(self, s):
         return {"existing": "已存在", "to_create": "待创建",

@@ -132,7 +132,13 @@ class MainWindow(QMainWindow):
         if hasattr(self.page_batch, "request_help"):
             self.page_batch.request_help.connect(self._show_help_at)
         self.page_templates.request_back.connect(lambda: self._goto(PAGE_HOME))
+        # 模板管理页面顶部"❓帮助"按钮 → 打开帮助 Dock 跳到模板章节
+        if hasattr(self.page_templates, "request_help"):
+            self.page_templates.request_help.connect(self._show_help_at)
         self.page_history.request_back.connect(lambda: self._goto(PAGE_HOME))
+        # 历史记录页面"以此新建"按钮 → 跳转单笔创建页并预填数据
+        if hasattr(self.page_history, "request_reuse"):
+            self.page_history.request_reuse.connect(self._on_reuse_record)
         # 帮助页面不再有"返回首页"信号 —— 通过 DockWidget 的关闭按钮自行隐藏
 
         self.stack.setCurrentIndex(PAGE_HOME)
@@ -209,3 +215,73 @@ class MainWindow(QMainWindow):
                 except Exception:
                     pass
         self.statusBar().showMessage("高级设置已保存，相关页面已刷新", 5000)
+
+    # ------------------------------------------------------------------
+    # 历史记录 →「以此新建」：跳转到单笔创建页并预填数据
+    # ------------------------------------------------------------------
+    def _on_reuse_record(self, record: dict):
+        """从历史记录跳转到单笔创建页，并预填业务员/客户/订单类型/产品类别。
+
+        注意时序：先调 _goto(PAGE_SINGLE) 会触发 page_single.refresh()，
+        refresh 会重新加载业务员和客户列表。之后再设置下拉框的
+        currentIndex 时，用 blockSignals 避免级联刷新覆盖后续设置的值。
+        """
+        self._goto(PAGE_SINGLE)
+        page = self.page_single
+
+        # 1) 订单类型（要先设，会影响模板匹配）
+        order_type = record.get("order_type", "")
+        if order_type:
+            page.cmb_order_type.blockSignals(True)
+            idx = page.cmb_order_type.findText(order_type)
+            if idx >= 0:
+                page.cmb_order_type.setCurrentIndex(idx)
+            page.cmb_order_type.blockSignals(False)
+
+        # 2) 业务员
+        sales = record.get("salesperson", "")
+        if sales:
+            page.cmb_sales.blockSignals(True)
+            idx = page.cmb_sales.findText(sales)
+            if idx >= 0:
+                page.cmb_sales.setCurrentIndex(idx)
+            page.cmb_sales.blockSignals(False)
+
+        # 3) 业务员确定后，主动刷一次客户列表（避免 blockSignals 时没走级联）
+        try:
+            page._load_customers()
+        except Exception:
+            pass
+
+        # 4) 客户
+        cust = record.get("customer", "")
+        if cust:
+            page.cmb_customer.blockSignals(True)
+            idx = page.cmb_customer.findText(cust)
+            if idx >= 0:
+                page.cmb_customer.setCurrentIndex(idx)
+            page.cmb_customer.blockSignals(False)
+
+        # 5) 客户更新后，主动同步 edit_customer 并刷新模板匹配
+        page.edit_customer.setText(cust)
+        try:
+            page._reload_templates()
+        except Exception:
+            pass
+
+        # 6) 产品类别（可能不可见/不存在）
+        cat = record.get("product_category", "") or ""
+        if cat and hasattr(page, "cmb_category") and page.cmb_category is not None:
+            if page.cmb_category.isVisible():
+                page.cmb_category.blockSignals(True)
+                idx = page.cmb_category.findText(cat)
+                if idx >= 0:
+                    page.cmb_category.setCurrentIndex(idx)
+                page.cmb_category.blockSignals(False)
+
+        # 7) 订单号留空让用户填新的
+        page.edit_order_no.clear()
+        page.edit_order_no.setFocus()
+        self.statusBar().showMessage(
+            f"已基于历史记录预填：{sales} / {cust} / {order_type}  请填写新的订单号", 6000
+        )

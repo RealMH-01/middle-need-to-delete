@@ -71,8 +71,12 @@ class ScanImportDialog(QDialog):
             "勾选完成后点「确认导入」。"
         )
         intro.setWordWrap(True)
-        intro.setStyleSheet("background:#FFF3E0;padding:10px;border-radius:6px;"
-                            "border:1px solid #FFCC80;")
+        # Neo-brutalism：柔紫背景 + 4px 黑色边框 + 直角
+        intro.setStyleSheet(
+            "QLabel { background:#C4B5FD; padding:10px 14px;"
+            " border:4px solid #000000; border-radius:0px;"
+            " color:#000000; font-weight:bold; }"
+        )
         root.addWidget(intro)
 
         # 订单文件夹路径显示
@@ -141,7 +145,8 @@ class ScanImportDialog(QDialog):
             )
         rule_tip = QLabel(rule_tip_text)
         rule_tip.setWordWrap(True)
-        rule_tip.setStyleSheet("color:#555;font-size:12px;")
+        # Neo-brutalism 禁用灰字，用纯黑 + 小字号
+        rule_tip.setStyleSheet("color:#000000;font-size:12px;")
         root.addWidget(rule_tip)
 
         # 按钮

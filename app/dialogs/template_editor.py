@@ -74,7 +74,7 @@ class TemplateEditorDialog(QDialog):
         layout = QVBoxLayout(self)
 
         tip = QLabel("✓ 勾选要创建的文件夹。右键可添加/删除自定义节点。选中节点后可在右侧编辑该文件夹下的参考文件。")
-        tip.setStyleSheet("color:#555;")
+        tip.setStyleSheet("color:#000000;")
         layout.addWidget(tip)
 
         name_row = QHBoxLayout()
