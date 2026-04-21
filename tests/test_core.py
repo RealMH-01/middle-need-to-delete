@@ -680,6 +680,127 @@ def test_template_display_name():
     print("  OK: 模板 display_name 读写正确")
 
 
+# ---------------------------------------------------------------
+# v2.4 向导配置写入相关测试
+# ---------------------------------------------------------------
+def test_set_root_dir_with_wizard_config():
+    """传入 wizard_config 时，config.json 应使用向导提供的值而非硬编码默认值"""
+    print("\n===== 测试：set_root_dir 接收向导配置 =====")
+    tmp = Path(tempfile.mkdtemp(prefix="wizard_test_"))
+    root = str(tmp / "wizard_test")
+    os.makedirs(root, exist_ok=True)
+
+    wizard_cfg = {
+        "root_dir": root,
+        "order_root_folder": "Orders",
+        "mid_layer_keywords": ["active"],
+        "origin_map": {"ProductA": "FactoryX"},
+        "origin_file_ext": {"FactoryX/外贸生产": ".xlsx"},
+        "template_files_dir": "",
+        "scanned_salespersons": [],
+    }
+
+    s = Storage()
+    s.set_root_dir(root, wizard_config=wizard_cfg)
+    cfg = s.load_config()
+
+    assert cfg["order_root_folder"] == "Orders", \
+        f"order_root_folder 应为 'Orders'，实际 {cfg['order_root_folder']}"
+    assert cfg["mid_layer_keywords"] == ["active"], \
+        f"mid_layer_keywords 不匹配：{cfg['mid_layer_keywords']}"
+    assert cfg["origin_map"] == {"ProductA": "FactoryX"}, \
+        f"origin_map 不匹配：{cfg['origin_map']}"
+    assert cfg["origin_file_ext"] == {"FactoryX/外贸生产": ".xlsx"}, \
+        f"origin_file_ext 不匹配：{cfg['origin_file_ext']}"
+    print("  OK: 向导提供的配置已正确写入 config.json")
+
+
+def test_set_root_dir_with_wizard_config_empty_origin():
+    """向导中跳过产品类别时，origin_map 和 origin_file_ext 为空字典"""
+    print("\n===== 测试：向导配置 - 跳过产品类别 =====")
+    tmp = Path(tempfile.mkdtemp(prefix="wizard_empty_"))
+    root = str(tmp / "wizard_empty")
+    os.makedirs(root, exist_ok=True)
+
+    wizard_cfg = {
+        "root_dir": root,
+        "order_root_folder": "订单管理",
+        "mid_layer_keywords": [],
+        "origin_map": {},
+        "origin_file_ext": {},
+        "template_files_dir": "",
+        "scanned_salespersons": [],
+    }
+
+    s = Storage()
+    s.set_root_dir(root, wizard_config=wizard_cfg)
+    cfg = s.load_config()
+
+    assert cfg["origin_map"] == {}, f"origin_map 应为空：{cfg['origin_map']}"
+    assert cfg["origin_file_ext"] == {}, f"origin_file_ext 应为空：{cfg['origin_file_ext']}"
+    assert cfg["mid_layer_keywords"] == [], \
+        f"mid_layer_keywords 应为空：{cfg['mid_layer_keywords']}"
+    assert cfg["order_root_folder"] == "订单管理"
+    # last_product_category 在 origin_map 为空时应为空串（不再硬编码"环氧树脂"）
+    assert cfg.get("last_product_category", "") == "", \
+        f"空 origin_map 时 last_product_category 应为空串：{cfg.get('last_product_category')}"
+    print("  OK: 空 origin_map 时不崩溃且保留空配置")
+
+
+def test_set_root_dir_without_wizard_config_backward_compat():
+    """不传 wizard_config 时，行为与旧版完全一致（使用硬编码默认值）"""
+    print("\n===== 测试：向后兼容 - 不传 wizard_config =====")
+    from app.core.storage import DEFAULT_ORIGIN_MAP, DEFAULT_ORDER_ROOT_FOLDER
+
+    tmp = Path(tempfile.mkdtemp(prefix="old_behavior_"))
+    root = str(tmp / "old_behavior")
+    os.makedirs(root, exist_ok=True)
+
+    s = Storage()
+    s.set_root_dir(root)  # 不传 wizard_config
+    cfg = s.load_config()
+
+    assert cfg["order_root_folder"] == DEFAULT_ORDER_ROOT_FOLDER, \
+        f"应使用默认值 {DEFAULT_ORDER_ROOT_FOLDER}，实际 {cfg['order_root_folder']}"
+    assert cfg["origin_map"] == DEFAULT_ORIGIN_MAP, \
+        f"origin_map 不匹配默认值：{cfg['origin_map']}"
+    print("  OK: 不传 wizard_config 时使用硬编码默认值，向后兼容")
+
+
+def test_set_root_dir_wizard_with_salespersons():
+    """向导中勾选了业务员时，应自动导入"""
+    print("\n===== 测试：向导自动导入业务员 =====")
+    tmp = Path(tempfile.mkdtemp(prefix="wizard_sp_"))
+    root = str(tmp / "wizard_sp")
+    # 创建目录结构模拟扫描结果
+    order_root = os.path.join(root, "Orders")
+    os.makedirs(os.path.join(order_root, "张三", "客户A"), exist_ok=True)
+    os.makedirs(os.path.join(order_root, "张三", "客户B"), exist_ok=True)
+
+    wizard_cfg = {
+        "root_dir": root,
+        "order_root_folder": "Orders",
+        "mid_layer_keywords": [],
+        "origin_map": {},
+        "origin_file_ext": {},
+        "template_files_dir": "",
+        "scanned_salespersons": ["张三"],
+    }
+
+    s = Storage()
+    s.set_root_dir(root, wizard_config=wizard_cfg)
+    sp_list = s.load_salespersons()
+
+    names = [sp["name"] for sp in sp_list]
+    assert "张三" in names, f"业务员'张三'应被自动导入，当前：{names}"
+    zhang = next(sp for sp in sp_list if sp["name"] == "张三")
+    assert "客户A" in zhang["customers"], \
+        f"客户A 应被导入，当前：{zhang['customers']}"
+    assert "客户B" in zhang["customers"], \
+        f"客户B 应被导入，当前：{zhang['customers']}"
+    print(f"  OK: 向导扫描的业务员'张三'及客户 {zhang['customers']} 已自动导入")
+
+
 def main():
     test_storage_init()
     test_salesperson()
@@ -796,6 +917,12 @@ def main():
     test_domestic_no_customs_folder()
     test_domestic_children_count()
     test_template_display_name()
+
+    # v2.4 新增测试：向导配置写入
+    test_set_root_dir_with_wizard_config()
+    test_set_root_dir_with_wizard_config_empty_origin()
+    test_set_root_dir_without_wizard_config_backward_compat()
+    test_set_root_dir_wizard_with_salespersons()
 
     print("\n========================================")
     print("🎉 全部核心测试通过！")

@@ -347,3 +347,52 @@ def test_execute_build_backward_compat(tmp_root):
     )
     assert Path(result["base_path"]).is_dir()
     assert Path(result["checklist_path"]).is_file()
+
+
+# ---------------------------------------------------------------
+# v2.4：产品类别可选 —— 空 origin_map 降级不崩溃
+# ---------------------------------------------------------------
+def test_empty_origin_map_product_category_empty_string(tmp_path):
+    """origin_map 为空时，resolve_file_template 应返回 None（跳过模板复制）。
+
+    模拟 v2.4 中向导里勾选了"不需要产品类别"的场景：
+    origin_map 为空字典、产品类别也为空串。
+    """
+    result = folder_builder.resolve_file_template("[产地]外贸生产", "", {}, {})
+    assert result is None
+
+
+def test_empty_origin_map_execute_build_no_crash(tmp_path):
+    """origin_map 为空、product_category 为空字符串时，execute_build 不应崩溃。
+
+    这是 v2.4 产品类别可选功能的关键回归场景：用户在向导中跳过
+    产品类别配置后，整条创建流程必须能正常跑完。
+    """
+    from app.core.default_templates import STANDARD_EXPORT
+
+    order = {
+        "order_no": "TEST-001",
+        "customer": "TestCust",
+        "product_info": "",
+        "po_no": "",
+        "product_category": "",  # 空
+        "salesperson": "Tester",
+        "needs_inspection": False,
+        "order_type": "外贸",
+    }
+    base = str(tmp_path / "test_base")
+    os.makedirs(base, exist_ok=True)
+
+    result = folder_builder.execute_build(
+        order=order,
+        template=STANDARD_EXPORT,
+        base_path=base,
+        template_files_dir=None,
+        origin_map={},           # 空
+        origin_file_ext={},      # 空
+    )
+
+    assert "base_path" in result, "execute_build 返回字典应包含 base_path"
+    assert isinstance(result["created"], list), "created 字段应为列表"
+    assert Path(result["base_path"]).is_dir(), "订单文件夹应被创建"
+    # 不应有任何异常抛出

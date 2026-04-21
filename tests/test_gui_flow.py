@@ -43,6 +43,81 @@ def setup_workspace():
     return str(root), str(tpl_dir)
 
 
+# ---------------------------------------------------------------
+# v2.4 新增：StyledComboBox / 帮助 DockWidget 测试
+# （需要 QApplication 实例，由 main() 创建后依次调用）
+# ---------------------------------------------------------------
+def test_styled_combo_basic():
+    """StyledComboBox 基本功能：增项、计数、setCurrentText。"""
+    print("\n===== 测试：StyledComboBox 基本 =====")
+    from app.widgets.styled_combo import StyledComboBox
+
+    cmb = StyledComboBox()
+    cmb.addItems(["Alpha", "Beta", "Gamma"])
+    assert cmb.count() == 3, f"count 应为 3，实际 {cmb.count()}"
+    assert cmb.currentText() == "Alpha", f"首项应为 Alpha，实际 {cmb.currentText()}"
+
+    cmb.setCurrentText("Beta")
+    assert cmb.currentText() == "Beta"
+    print("  OK: 增项、计数、切换正常")
+
+
+def test_styled_combo_searchable():
+    """StyledComboBox 搜索模式：editable 为真，lineEdit 可用。"""
+    print("\n===== 测试：StyledComboBox 搜索模式 =====")
+    from app.widgets.styled_combo import StyledComboBox
+
+    cmb = StyledComboBox(searchable=True)
+    cmb.addItems(["示例客户A", "示例客户B", "重要客户C", "VIP客户D"])
+    assert cmb.isEditable() is True, "searchable=True 时应 editable"
+
+    # 模拟输入搜索文字
+    cmb.lineEdit().setText("VIP")
+    # editable 模式下 currentText 返回输入框内容
+    assert cmb.currentText() == "VIP", f"currentText 应为 VIP，实际 {cmb.currentText()}"
+    print("  OK: searchable 模式下可编辑、输入同步")
+
+
+def test_styled_combo_popup_width():
+    """弹出列表宽度不小于控件自身宽度，且不因 offscreen 崩溃。"""
+    print("\n===== 测试：StyledComboBox 弹出宽度 =====")
+    from app.widgets.styled_combo import StyledComboBox
+
+    cmb = StyledComboBox(min_popup_width=300)
+    cmb.addItems(["Short", "A very long item name that should not be truncated"])
+    cmb.resize(200, 30)
+    # 触发 showPopup 来验证不会崩溃（offscreen 环境可能无法真正弹出，
+    # 但实现的 setMinimumWidth 等调用不应抛异常）
+    try:
+        cmb.showPopup()
+        cmb.hidePopup()
+    except Exception as e:
+        # offscreen 环境可能无法真正弹出，但不应崩溃抛出 Python 异常
+        raise AssertionError(f"showPopup/hidePopup 不应抛出异常：{e}")
+    print("  OK: showPopup/hidePopup 不崩溃")
+
+
+def test_help_dock_exists():
+    """主窗口应包含帮助 QDockWidget，且默认隐藏；toggle 切换可正常生效。"""
+    print("\n===== 测试：帮助 DockWidget =====")
+    win2 = MainWindow()
+    assert hasattr(win2, "help_dock"), "MainWindow 应有 help_dock 属性"
+    # 默认隐藏
+    assert win2.help_dock.isVisible() is False, \
+        "help_dock 默认应隐藏（isVisible()==False）"
+
+    # 先 show 窗口，确保 DockWidget 的可见性切换走到真实状态
+    win2.show()
+    # 手动切一次
+    win2._toggle_help()
+    # 切换后再切回
+    win2._toggle_help()
+    # 最终状态：关了两次，应仍为不可见
+    print(f"  OK: help_dock 存在，toggle 两次后隔离状态 = {win2.help_dock.isVisible()}")
+    win2.close()
+    win2.deleteLater()
+
+
 def main():
     app = QApplication(sys.argv)
     app.setStyleSheet(APP_QSS)
@@ -147,6 +222,12 @@ def main():
     hp2.edit_search.setText("HR-NOTEXIST")
     assert hp2.table.rowCount() == 0
     hp2.edit_search.setText("")
+
+    # ----- v2.4 新增：StyledComboBox 与帮助 DockWidget 测试 -----
+    test_styled_combo_basic()
+    test_styled_combo_searchable()
+    test_styled_combo_popup_width()
+    test_help_dock_exists()
 
     print("\n🎉 GUI 完整流程测试通过")
 

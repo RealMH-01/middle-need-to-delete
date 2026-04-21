@@ -273,8 +273,19 @@ def generate(target_dir: Path) -> None:
     print(f"📄 生成模板文件目录：{template_files_dir}")
     _write_template_files(template_files_dir)
 
-    # 把 template_files_dir 写进 config.json，让程序启动后能自动复制模板
-    storage.update_config(template_files_dir=str(template_files_dir))
+    # 把 template_files_dir 写进 config.json，让程序启动后能自动复制模板。
+    # 同时预填 last_salesperson / last_customer / last_order_type / last_product_category
+    # 等字段，让演示环境一打开就有合理的默认选中项。
+    # 使用首个演示业务员及其首个客户作为默认选中值，保持与演示数据一致。
+    first_sp = DEMO_SALESPERSONS[0]
+    first_customer = next(iter(first_sp["customers"].keys()))
+    storage.update_config(
+        template_files_dir=str(template_files_dir),
+        last_salesperson=first_sp["name"],
+        last_customer=first_customer,
+        last_order_type="外贸",
+        last_product_category="环氧树脂",
+    )
 
     # 3. 写入演示业务员（不含客户→订单的映射，仅 name / rel_path / mid_layer / customers 列表）
     print(f"👥 写入 {len(DEMO_SALESPERSONS)} 个业务员到 salespersons.json ...")
