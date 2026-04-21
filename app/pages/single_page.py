@@ -41,6 +41,11 @@ class SinglePage(QWidget):
         self.storage = storage
         self._current_template = None  # 当前使用的模板 dict
         self._current_template_name = ""
+        # Bug 18：显式初始化 _tpl_options，防止 _build_ui 过程中
+        # cmb_template 的 addItems 触发 currentIndexChanged →
+        # _on_template_changed 时，该属性尚不存在（虽然已用 getattr
+        # 做了防御，但更早初始化能避免 self._current_template 被错误置 None）。
+        self._tpl_options = []
         self._build_ui()
 
     # ============== UI ==============
@@ -385,6 +390,11 @@ class SinglePage(QWidget):
         self.edit_product_info.clear()
         self.edit_po.clear()
         self.chk_inspection.setChecked(False)
+        # Bug 24：同步客户名称输入框到当前下拉框选中项。
+        # 场景：用户手动改过 edit_customer（例如加了括号备注），
+        # 点"重置"后应回到"只选了人、没填任何信息"的干净状态，
+        # 而不是保留手动修改后的值（与下拉框不一致）。
+        self.edit_customer.setText(self.cmb_customer.currentText())
 
     # ============== 核心动作 ==============
     def _collect_order(self):

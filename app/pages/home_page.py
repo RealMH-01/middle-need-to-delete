@@ -267,7 +267,36 @@ class HomePage(QWidget):
             except Exception as e:
                 QMessageBox.warning(self, "提示", f"目录不存在且创建失败：{e}")
                 return
+
+        # Bug 14：在切换根目录前，保存旧配置中的关键自定义字段（如
+        # 用户通过向导或「⚙ 高级设置」配置的 origin_map、
+        # order_root_folder 等）。这样切换到一个从未使用过的新目录时，
+        # set_root_dir 会写入硬编码默认值，但随后把旧配置迁移过来，
+        # 避免用户精心配置的自定义项目被硬编码默认值覆盖。
+        #
+        # 关键：只有在目标目录尚不存在 .order_tool/config.json 时才迁移，
+        # 否则会把自己的旧配置覆盖掉目标目录里本来就有的配置（用户可能
+        # 在多个根目录间切换，每个目录都应保留各自的配置）。
+        old_cfg = self.storage.load_config() if self.storage.config_file else {}
+        from pathlib import Path
+        new_cfg_path = Path(root) / ".order_tool" / "config.json"
+        new_dir_is_fresh = not new_cfg_path.exists()
+
         self.storage.set_root_dir(root)
+
+        # 仅当目标目录是全新目录（set_root_dir 刚用默认值创建了 config.json）
+        # 时，把旧配置中非空的关键字段迁移过来。
+        if old_cfg and new_dir_is_fresh:
+            new_cfg = self.storage.load_config()
+            migrated = False
+            for key in ("order_root_folder", "mid_layer_keywords",
+                        "origin_map", "origin_file_ext"):
+                if key in old_cfg and old_cfg[key]:
+                    new_cfg[key] = old_cfg[key]
+                    migrated = True
+            if migrated:
+                self.storage.save_config(new_cfg)
+
         # 同步保存到 bootstrap
         from ..core.storage import save_bootstrap, load_bootstrap
         bs = load_bootstrap()
@@ -426,15 +455,18 @@ class HomePage(QWidget):
         self._auto_save_root_if_needed()
 
         from PyQt5.QtWidgets import (
-            QComboBox, QDialog, QDialogButtonBox, QFormLayout, QLineEdit,
-            QPushButton
+            QDialog, QDialogButtonBox, QFormLayout, QLineEdit, QPushButton
         )
         from ..core import folder_builder
         from ..dialogs.folder_cleanup import FolderCleanupDialog
+        # Bug 26/30：对话框中的下拉框统一使用 StyledComboBox，
+        # 与全局 Neo-brutalism 视觉保持一致
+        from ..widgets import StyledComboBox
 
         dlg = QDialog(self)
         dlg.setWindowTitle("整理已有订单文件夹")
-        dlg.resize(560, 320)
+        # Bug 30：新增业务员字段后略微加高对话框
+        dlg.resize(560, 360)
         form = QFormLayout(dlg)
 
         # 订单文件夹路径
@@ -465,13 +497,21 @@ class HomePage(QWidget):
         edit_order_no.setPlaceholderText("例如 ORD-2026001")
         form.addRow("订单号：", edit_order_no)
 
+        # Bug 30：新增业务员下拉框。此前 salesperson 固定为空串，
+        # 会导致模板文件名中的 <业务员> 占位符被替换为空串，
+        # 让 FolderCleanupDialog 的"期望文件名"与实际文件名不一致。
+        cmb_salesperson = StyledComboBox(searchable=True)
+        sp_names = [it["name"] for it in self.storage.load_salespersons()]
+        cmb_salesperson.addItems(["（不选择）"] + sp_names)
+        form.addRow("业务员：", cmb_salesperson)
+
         # 客户名称
         edit_customer = QLineEdit()
         edit_customer.setPlaceholderText("用于替换 <客户名称> 占位符")
         form.addRow("客户名称：", edit_customer)
 
-        # 模板选择
-        cmb_template = QComboBox()
+        # 模板选择（Bug 26：替换为 StyledComboBox 保持视觉一致）
+        cmb_template = StyledComboBox()
         tpl_list = self.storage.list_template_files()
         tpl_entries = []
         for fn in tpl_list.get("standard", []):
@@ -491,7 +531,8 @@ class HomePage(QWidget):
         form.addRow("使用模板：", cmb_template)
 
         # 产品类别（从 config.json 的 origin_map 动态读取）
-        cmb_cat = QComboBox()
+        # Bug 26：替换为 StyledComboBox 保持视觉一致
+        cmb_cat = StyledComboBox()
         cfg_home = self.storage.load_config() if self.storage else {}
         cat_opts = list((cfg_home.get("origin_map") or {}).keys())
         if cat_opts:
@@ -510,6 +551,12 @@ class HomePage(QWidget):
         order_no = edit_order_no.text().strip()
         customer = edit_customer.text().strip()
         idx = cmb_template.currentIndex()
+
+        # Bug 30：获取用户选择的业务员。"（不选择）" 对应空串，
+        # 让 <业务员> 占位符被替换为空（用户明确选择不带业务员）。
+        sp_text = cmb_salesperson.currentText().strip()
+        if sp_text == "（不选择）":
+            sp_text = ""
 
         if not order_folder or not os.path.isdir(order_folder):
             QMessageBox.warning(self, "提示", "请选择一个存在的订单文件夹")
@@ -533,7 +580,8 @@ class HomePage(QWidget):
             "product_info": "",
             "po_no": "",
             "product_category": cmb_cat.currentText(),
-            "salesperson": "",
+            # Bug 30：使用用户选择的业务员名称（可能为空）
+            "salesperson": sp_text,
             "needs_inspection": False,
             "order_type": "外贸" if template.get("type") == "export" else "内贸",
         }
