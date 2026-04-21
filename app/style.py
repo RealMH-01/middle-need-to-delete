@@ -304,10 +304,26 @@ QComboBox:disabled {{
     color: {COLOR_INK};
 }}
 QComboBox::drop-down {{
+    /* Neo-brutalism 风格的下拉箭头区域：
+       - 左侧 4px 粗黑竖线作为与文本区的视觉分隔；
+       - 鲜黄底，与色板一致，让"这里可以点开"的提示一目了然；
+       - 宽度加大到 36px，方便用户点中。
+       具体的 ▼ 符号由 StyledComboBox 内部贴一个 QLabel 显示，
+       因为 PyQt5 QSS 的 ``image`` 属性需要外部资源文件，为了不
+       引入图片资源，我们让箭头符号用 QLabel 在代码里画。*/
     border: none;
-    width: 22px;
+    border-left: 4px solid {COLOR_INK};
+    background-color: {COLOR_SECONDARY};
+    width: 36px;
     subcontrol-origin: padding;
     subcontrol-position: top right;
+}}
+QComboBox::down-arrow {{
+    /* 隐藏 Qt 默认的小箭头图标（通常是灰色三角，不符合 Neo-brutalism），
+       真正可见的 ▼ 由 StyledComboBox 里的 QLabel 负责绘制。*/
+    image: none;
+    width: 0px;
+    height: 0px;
 }}
 QComboBox QAbstractItemView {{
     background-color: {COLOR_WHITE};

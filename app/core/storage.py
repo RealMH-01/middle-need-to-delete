@@ -202,9 +202,29 @@ class Storage:
                 init_cfg.update(_config_defaults())
             _safe_write_json(self.config_file, init_cfg)
         else:
-            # 更新 root_dir
+            # 已有 config.json：更新 root_dir。
+            # 如果本次调用带了 wizard_config（用户重新走了首次启动向导），
+            # 则用向导提供的值覆盖"通用化改造"相关字段，而保留
+            # last_salesperson / operator / last_* 等非向导字段不动。
             cfg = self.load_config()
             cfg["root_dir"] = root_dir
+            if wizard_config is not None:
+                cfg["order_root_folder"] = (
+                    wizard_config.get("order_root_folder")
+                    or cfg.get("order_root_folder", DEFAULT_ORDER_ROOT_FOLDER)
+                )
+                cfg["mid_layer_keywords"] = list(
+                    wizard_config.get("mid_layer_keywords") or []
+                )
+                cfg["origin_map"] = dict(
+                    wizard_config.get("origin_map") or {}
+                )
+                cfg["origin_file_ext"] = dict(
+                    wizard_config.get("origin_file_ext") or {}
+                )
+                tpl_dir = wizard_config.get("template_files_dir")
+                if tpl_dir:
+                    cfg["template_files_dir"] = tpl_dir
             self.save_config(cfg)
 
         # 旧版本升级兼容：无论 config.json 是否新建，都检查并补写缺失的默认字段
@@ -296,13 +316,18 @@ class Storage:
         for it in items:
             if it["name"] == name:
                 return False
+        final_rel = rel_path.strip() or name
+        final_mid = mid_layer.strip()
         items.append({
             "name": name,
-            "rel_path": rel_path.strip() or name,
-            "mid_layer": mid_layer.strip(),
+            "rel_path": final_rel,
+            "mid_layer": final_mid,
             "customers": [],
         })
         self.save_salespersons(items)
+        # 同步创建物理目录：<根目录>/<订单根文件夹>/<rel_path各段>
+        # 防御性：root_dir 未设置则跳过；任何 OS 层异常也不影响 JSON 写入结果
+        self._ensure_salesperson_dir(final_rel)
         return True
 
     def update_salesperson(self, name: str, rel_path: Optional[str] = None,
@@ -332,6 +357,8 @@ class Storage:
                     return False
                 it["customers"].append(customer)
                 self.save_salespersons(items)
+                # 同步创建客户物理目录
+                self._ensure_customer_dir(salesperson, customer)
                 return True
         # 业务员不存在则同时创建
         items.append({
@@ -341,6 +368,9 @@ class Storage:
             "customers": [customer],
         })
         self.save_salespersons(items)
+        # 同步创建业务员目录 + 客户目录
+        self._ensure_salesperson_dir(salesperson)
+        self._ensure_customer_dir(salesperson, customer)
         return True
 
     def get_customers(self, salesperson: str) -> List[str]:
@@ -348,6 +378,42 @@ class Storage:
             if it["name"] == salesperson:
                 return list(it["customers"])
         return []
+
+    # -------- 物理目录同步 --------
+    def _ensure_salesperson_dir(self, rel_path: str) -> None:
+        """在文件系统创建业务员目录：
+            <root_dir>/<order_root_folder>/<rel_path各段>/
+
+        - 未设置 root_dir / rel_path 为空时静默跳过。
+        - 使用 exist_ok=True，已存在不报错。
+        - 任何 OSError 都吞掉，保证 JSON 写入不会因此回滚。
+        """
+        if not self.root_dir or not rel_path:
+            return
+        try:
+            path = os.path.join(self.root_dir, self.order_root_folder)
+            for seg in rel_path.replace("\\", "/").split("/"):
+                seg = seg.strip()
+                if seg:
+                    path = os.path.join(path, seg)
+            os.makedirs(path, exist_ok=True)
+        except OSError:
+            pass
+
+    def _ensure_customer_dir(self, salesperson: str, customer: str) -> None:
+        """在文件系统创建客户目录（含中间层，如果业务员配置了 mid_layer）。
+
+        复用 :meth:`build_customer_dir` 的路径拼接逻辑，保证与
+        execute_build 时的目录结构一致。
+        """
+        if not self.root_dir or not salesperson or not customer:
+            return
+        try:
+            path = self.build_customer_dir(salesperson, customer)
+            if path:
+                os.makedirs(path, exist_ok=True)
+        except OSError:
+            pass
 
     # -------- 订单路径拼接 --------
     @property

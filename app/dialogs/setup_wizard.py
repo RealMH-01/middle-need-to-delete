@@ -18,7 +18,7 @@
 from pathlib import Path
 from typing import Any, Dict, List
 
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import (
     QAbstractItemView, QCheckBox, QDialog, QFileDialog, QFrame,
@@ -681,12 +681,28 @@ class SetupWizard(QDialog):
         self._goto_step(3)
 
     def _on_step2_configure(self):
-        """点了"需要"——展开配置区域。"""
+        """点了"需要"——展开配置区域并滚动到可见。"""
         self._step3_enabled = True
         self._step2_config.setVisible(True)
         # 把"配置"按钮改成"已展开"样式提示
         self.btn_need_step2.setEnabled(False)
         self.btn_skip_step2.setEnabled(False)
+        # 展开后立刻滚动到配置区域，避免它出现在视口外用户看不到。
+        # 用 QTimer.singleShot(0) 延迟到下一次事件循环执行，确保
+        # setVisible(True) 引发的布局重算已经完成，
+        # ensureWidgetVisible 才能拿到正确的 widget 坐标。
+        QTimer.singleShot(0, self._scroll_step2_to_config)
+
+    def _scroll_step2_to_config(self):
+        """让 Step 2 的配置区域滚入视口。"""
+        # Step 2 是 stack 的第 3 个 widget（index=2），它是 _wrap_scroll
+        # 返回的 QScrollArea。我们让配置区域带 50 px 边距进入视口。
+        try:
+            scroll_area = self.stack.widget(2)
+        except Exception:
+            return
+        if scroll_area is not None and hasattr(scroll_area, "ensureWidgetVisible"):
+            scroll_area.ensureWidgetVisible(self._step2_config, 50, 50)
 
     def _on_origin_add(self):
         r = self.tbl_origin.rowCount()
