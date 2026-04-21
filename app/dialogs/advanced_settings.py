@@ -16,10 +16,13 @@ from typing import Any, Dict, List
 
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (
-    QAbstractItemView, QDialog, QDialogButtonBox, QGroupBox, QHBoxLayout,
-    QHeaderView, QLabel, QLineEdit, QMessageBox, QPushButton, QTableWidget,
+    QAbstractItemView, QDialog, QDialogButtonBox, QFrame, QGroupBox,
+    QHBoxLayout, QHeaderView, QLabel, QLineEdit, QMessageBox, QPushButton,
+    QScrollArea, QSpacerItem, QSizePolicy, QTableWidget,
     QTableWidgetItem, QVBoxLayout, QWidget,
 )
+
+from ..style import COLOR_INK, COLOR_MUTED
 
 
 # 同时支持中英文逗号分隔
@@ -34,6 +37,7 @@ class AdvancedSettingsDialog(QDialog):
         self.storage = storage
         self.setWindowTitle("⚙ 高级设置")
         self.resize(720, 640)
+        self.setMinimumSize(500, 400)
         self.setModal(True)
 
         self._build_ui()
@@ -47,17 +51,33 @@ class AdvancedSettingsDialog(QDialog):
         root.setContentsMargins(16, 14, 16, 14)
         root.setSpacing(12)
 
-        # 顶部说明
+        # 顶部说明（固定在顶部，不随内容滚动）
         intro = QLabel(
             "在这里可以调整程序的通用化配置。大多数情况下保持默认即可。"
-            "<br/>修改后点「保存」会写入 <code>.order_tool/config.json</code>，立即生效。"
+            "<br/>修改后点「保存」会立即生效。"
         )
         intro.setWordWrap(True)
         intro.setStyleSheet(
-            "background:#E3F2FD;padding:10px;border-radius:6px;"
-            "border:1px solid #90CAF9;"
+            f"QLabel {{"
+            f"  background-color: {COLOR_MUTED};"
+            f"  border: 4px solid {COLOR_INK};"
+            f"  border-radius: 0px;"
+            f"  padding: 10px 14px;"
+            f"  color: {COLOR_INK};"
+            f"  font-weight: bold;"
+            f"}}"
         )
         root.addWidget(intro)
+
+        # ---- 中部：QScrollArea 承载四个 GroupBox ----
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+
+        content = QWidget()
+        content_layout = QVBoxLayout(content)
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(12)
 
         # ---- 区域一：订单根文件夹名 ----
         grp1 = QGroupBox("① 订单根文件夹名")
@@ -70,7 +90,7 @@ class AdvancedSettingsDialog(QDialog):
         self.edit_order_root = QLineEdit()
         self.edit_order_root.setPlaceholderText("例如 1订单 / Orders / 订单管理")
         g1_layout.addWidget(self.edit_order_root)
-        root.addWidget(grp1)
+        content_layout.addWidget(grp1)
 
         # ---- 区域二：中间层关键词 ----
         grp2 = QGroupBox("② 中间层关键词")
@@ -85,7 +105,7 @@ class AdvancedSettingsDialog(QDialog):
         self.edit_mid_kws = QLineEdit()
         self.edit_mid_kws.setPlaceholderText("例如：进行, 订单")
         g2_layout.addWidget(self.edit_mid_kws)
-        root.addWidget(grp2)
+        content_layout.addWidget(grp2)
 
         # ---- 区域三：产品类别与产地映射 ----
         grp3 = QGroupBox("③ 产品类别与产地映射")
@@ -120,7 +140,7 @@ class AdvancedSettingsDialog(QDialog):
         g3_btns.addWidget(btn_om_del)
         g3_btns.addStretch(1)
         g3_layout.addLayout(g3_btns)
-        root.addWidget(grp3)
+        content_layout.addWidget(grp3)
 
         # ---- 区域四：产地文件扩展名映射 ----
         grp4 = QGroupBox("④ 产地文件扩展名映射")
@@ -156,14 +176,25 @@ class AdvancedSettingsDialog(QDialog):
         g4_btns.addWidget(btn_ext_del)
         g4_btns.addStretch(1)
         g4_layout.addLayout(g4_btns)
-        root.addWidget(grp4)
+        content_layout.addWidget(grp4)
 
-        # ---- 底部按钮 ----
+        # 弹性空白：让内容少时不把 GroupBox 拉变形
+        content_layout.addSpacerItem(
+            QSpacerItem(0, 0, QSizePolicy.Minimum, QSizePolicy.Expanding)
+        )
+
+        scroll.setWidget(content)
+        root.addWidget(scroll, 1)  # 占满中部，可滚动
+
+        # ---- 底部按钮（固定在底部，不滚动）----
         btns = QDialogButtonBox()
         self.btn_save = btns.addButton("保存", QDialogButtonBox.AcceptRole)
-        self.btn_save.setStyleSheet("font-weight:bold;")
+        # Neo-brutalism 主按钮（默认就是热红），保持默认 objectName 即可
         self.btn_cancel = btns.addButton("取消", QDialogButtonBox.RejectRole)
         self.btn_cancel.setObjectName("SecondaryButton")
+        # 重新 polish 一下，让 QSS 按 objectName 生效
+        self.btn_cancel.style().unpolish(self.btn_cancel)
+        self.btn_cancel.style().polish(self.btn_cancel)
         btns.accepted.connect(self._on_save)
         btns.rejected.connect(self.reject)
         root.addWidget(btns)

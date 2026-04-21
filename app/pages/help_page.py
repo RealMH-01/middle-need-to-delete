@@ -2,13 +2,16 @@
 """使用帮助页（完全傻瓜式教程）
 
 - 使用 QTextBrowser 展示富文本（HTML）
-- 顶部有返回首页按钮 + 章节快速跳转按钮栏
+- 顶部章节下拉框 —— 适配较窄的 QDockWidget（默认宽度约 380px）
 - 内容面向从未接触过程序的普通办公人员
+
+由 ``MainWindow`` 放进 :class:`PyQt5.QtWidgets.QDockWidget` 中展示，
+本类不再提供返回首页的按钮/信号。
 """
 
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (
-    QHBoxLayout, QLabel, QPushButton, QTextBrowser, QVBoxLayout, QWidget
+    QComboBox, QHBoxLayout, QLabel, QTextBrowser, QVBoxLayout, QWidget
 )
 
 
@@ -46,11 +49,14 @@ def _build_help_html() -> str:
       .k { color:#C62828; font-weight:bold; }
       .btn { background:#1976D2; color:white; padding:2px 8px;
              border-radius:4px; font-weight:bold; }
-      table { border-collapse:collapse; margin:10px 0; }
-      th, td { border:1px solid #B0BEC5; padding:6px 12px; }
+      table { border-collapse:collapse; margin:10px 0;
+              width:100%; table-layout:fixed; }
+      th, td { border:1px solid #B0BEC5; padding:6px 12px;
+               word-wrap:break-word; word-break:break-word; }
       th { background:#E3F2FD; color:#0D47A1; }
       pre { background:#263238; color:#ECEFF1; padding:12px;
-            border-radius:6px; font-size:13px; overflow-x:auto; }
+            border-radius:6px; font-size:13px; overflow-x:auto;
+            white-space:pre-wrap; word-wrap:break-word; }
     </style>
     """
 
@@ -85,7 +91,7 @@ def _build_help_html() -> str:
       <li>把<b>属于业务员</b>的文件夹打勾 ✓（例如 张三、李四、王五）。</li>
       <li>不是业务员的<b>不要勾</b>（例如"技术认证"这种资料文件夹）。</li>
       <li>每个文件夹旁边有一个<b>下拉标注框</b>，用来告诉程序这个文件夹是什么角色：
-        <table>
+        <table style="width:100%; table-layout:fixed;">
           <tr><th>标注</th><th>含义</th></tr>
           <tr><td><b>业务员</b></td><td>这个文件夹本身就是一个业务员的文件夹</td></tr>
           <tr><td><b>分公司/区域</b></td><td>这个文件夹是分公司（如"华南分公司"），<br/>里面的子文件夹才是业务员，需要展开勾选</td></tr>
@@ -105,7 +111,7 @@ def _build_help_html() -> str:
       <li>点首页底部的 <span class="btn">⚙ 高级设置</span> 按钮。</li>
       <li>会弹出一个设置窗口，里面有四个区域：</li>
     </ol>
-    <table>
+    <table style="width:100%; table-layout:fixed;">
       <tr><th>设置项</th><th>什么意思</th><th>什么时候需要改</th></tr>
       <tr>
         <td>订单根文件夹名</td>
@@ -158,7 +164,7 @@ def _build_help_html() -> str:
           （只有外贸订单才显示这个选项）</li>
       <li>点右下角蓝色的 <span class="btn">下一步：扫描并预览 →</span>。</li>
       <li>程序会弹出预览窗口，用三种颜色告诉你接下来的操作：
-        <table>
+        <table style="width:100%; table-layout:fixed;">
           <tr><th>颜色</th><th>含义</th></tr>
           <tr><td style="color:#4CAF50;"><b>■ 绿色</b></td><td>文件夹已经存在，<b>不会重复创建</b></td></tr>
           <tr><td style="color:#2196F3;"><b>■ 蓝色</b></td><td>文件夹还没有，程序会<b>帮你新建</b></td></tr>
@@ -217,7 +223,7 @@ def _build_help_html() -> str:
       <li>点首页的 <span class="btn">📦 批量导入</span> 按钮。</li>
       <li>点 <span class="btn">下载 Excel 模板</span>，保存一个 Excel 文件到电脑上。</li>
       <li>用 Excel 打开这个模板文件，按表头填写每一行（<b>一行就是一笔订单</b>）：
-        <table>
+        <table style="width:100%; table-layout:fixed;">
           <tr><th>列名</th><th>说明</th></tr>
           <tr><td>订单类型</td><td>外贸 / 内贸</td></tr>
           <tr><td>订单号</td><td>例如 ORD-2026001</td></tr>
@@ -316,7 +322,7 @@ def _build_help_html() -> str:
     注意尖括号和里面的文字必须完全一致，打错了程序无法识别。</p>
     <p>所以<b>建议使用方法一或方法二</b>，不容易出错。</p>
 
-    <table>
+    <table style="width:100%; table-layout:fixed;">
       <tr><th>占位符</th><th>会被替换成什么</th><th>替换后的例子</th></tr>
       <tr><td><code>&lt;订单号&gt;</code></td><td>你填的订单号</td><td>ORD-2026001</td></tr>
       <tr><td><code>&lt;客户名称&gt;</code></td><td>你选的客户名称</td><td>示例客户A</td></tr>
@@ -361,7 +367,7 @@ def _build_help_html() -> str:
     <p>在「模板管理」中编辑文件名时，可以使用以下<b>占位符</b>，
     程序在创建时会自动替换成实际内容：</p>
 
-    <table>
+    <table style="width:100%; table-layout:fixed;">
       <tr><th>占位符</th><th>含义</th><th>示例</th></tr>
       <tr><td><code>&lt;订单号&gt;</code></td><td>你填写的订单号</td><td>ORD-2026001</td></tr>
       <tr><td><code>&lt;客户名称&gt;</code></td><td>你选择的客户名称</td><td>示例客户A</td></tr>
@@ -427,9 +433,12 @@ def _build_help_html() -> str:
 
 
 class HelpPage(QWidget):
-    """使用帮助页"""
+    """使用帮助页。
 
-    request_back = pyqtSignal()
+    放入 :class:`~PyQt5.QtWidgets.QDockWidget` 中展示，
+    宽度可能被压到较窄（如 380px），因此顶部导航改用
+    :class:`~PyQt5.QtWidgets.QComboBox` 下拉框代替按钮组。
+    """
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -437,32 +446,23 @@ class HelpPage(QWidget):
 
     def _build_ui(self):
         root = QVBoxLayout(self)
-        root.setContentsMargins(20, 14, 20, 14)
+        root.setContentsMargins(14, 12, 14, 12)
         root.setSpacing(10)
 
-        # 顶部栏
-        top = QHBoxLayout()
-        btn_back = QPushButton("← 返回首页")
-        btn_back.setObjectName("SecondaryButton")
-        btn_back.clicked.connect(self.request_back.emit)
-        top.addWidget(btn_back)
+        # 顶部标题（DockWidget 自带标题栏，这里再显式放一个标题更醒目）
         title = QLabel("使用帮助")
         title.setObjectName("TitleLabel")
-        top.addWidget(title)
-        top.addStretch(1)
-        root.addLayout(top)
+        root.addWidget(title)
 
-        # 章节导航
+        # 章节导航：下拉框（适配较窄面板）
         nav = QHBoxLayout()
         nav.setSpacing(6)
         nav.addWidget(QLabel("快速跳转："))
+        self.cmb_section = QComboBox()
         for anchor, label in SECTIONS:
-            b = QPushButton(label)
-            b.setObjectName("SecondaryButton")
-            b.setCursor(Qt.PointingHandCursor)
-            b.clicked.connect(lambda _=False, a=anchor: self._goto_anchor(a))
-            nav.addWidget(b)
-        nav.addStretch(1)
+            self.cmb_section.addItem(label, anchor)
+        self.cmb_section.currentIndexChanged.connect(self._on_section_changed)
+        nav.addWidget(self.cmb_section, 1)
         root.addLayout(nav)
 
         # 帮助内容
@@ -475,6 +475,24 @@ class HelpPage(QWidget):
         """由主窗口统一调用；本页无状态无需特殊刷新。"""
         self.browser.verticalScrollBar().setValue(0)
 
-    def _goto_anchor(self, anchor: str):
-        """跳到锚点（QTextBrowser 支持 scrollToAnchor）"""
+    # ------------------------------------------------------------------
+    # 锚点跳转（公开 API，供 MainWindow._show_help_at 调用）
+    # ------------------------------------------------------------------
+    def goto_anchor(self, anchor: str):
+        """跳到指定锚点并同步下拉框选择。"""
+        if not anchor:
+            return
+        # 同步下拉框
+        for i in range(self.cmb_section.count()):
+            if self.cmb_section.itemData(i) == anchor:
+                self.cmb_section.blockSignals(True)
+                self.cmb_section.setCurrentIndex(i)
+                self.cmb_section.blockSignals(False)
+                break
         self.browser.scrollToAnchor(anchor)
+
+    # 内部辅助
+    def _on_section_changed(self, idx: int):
+        anchor = self.cmb_section.itemData(idx)
+        if anchor:
+            self.browser.scrollToAnchor(anchor)

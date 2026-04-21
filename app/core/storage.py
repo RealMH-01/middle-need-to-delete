@@ -121,8 +121,26 @@ class Storage:
             self.set_root_dir(root_dir)
 
     # -------- 根目录 --------
-    def set_root_dir(self, root_dir: str) -> None:
-        """设置根目录并初始化相关目录结构"""
+    def set_root_dir(self, root_dir: str,
+                     wizard_config: Optional[Dict[str, Any]] = None) -> None:
+        """设置根目录并初始化相关目录结构。
+
+        参数
+        ----
+        root_dir : str
+            根目录绝对路径。
+        wizard_config : dict, 可选
+            由首次启动向导 :class:`~app.dialogs.setup_wizard.SetupWizard`
+            收集的配置字典（可通过其 ``collected_config()`` 获取）。
+            非 ``None`` 时，使用其中的 ``order_root_folder``、
+            ``mid_layer_keywords``、``origin_map``、``origin_file_ext``、
+            ``template_files_dir`` 作为初始值写入 ``config.json``；
+            ``None`` 时走旧的默认初始化逻辑（不影响老用户和现有测试）。
+
+            另外如果向导传入了 ``scanned_salespersons``（非空 list），
+            会在本方法末尾自动调用 :meth:`import_scanned_salespersons`
+            把它们导入。
+        """
         self.root_dir = root_dir
         root_path = Path(root_dir)
         self.data_dir = root_path / DATA_DIR_NAME
@@ -151,11 +169,37 @@ class Storage:
                 "last_salesperson": "",
                 "last_customer": "",
                 "last_order_type": "外贸",
-                "last_product_category": "环氧树脂",
+                "last_product_category": "",
                 "operator": os.environ.get("USERNAME") or os.environ.get("USER") or "",
             }
-            # 合并通用化改造相关的默认字段（origin_map / origin_file_ext / ...）
-            init_cfg.update(_config_defaults())
+            if wizard_config is not None:
+                # 向导提供的值优先
+                init_cfg["order_root_folder"] = (
+                    wizard_config.get("order_root_folder")
+                    or DEFAULT_ORDER_ROOT_FOLDER
+                )
+                init_cfg["mid_layer_keywords"] = list(
+                    wizard_config.get("mid_layer_keywords") or []
+                )
+                init_cfg["origin_map"] = dict(
+                    wizard_config.get("origin_map") or {}
+                )
+                init_cfg["origin_file_ext"] = dict(
+                    wizard_config.get("origin_file_ext") or {}
+                )
+                tpl_dir = wizard_config.get("template_files_dir") or ""
+                init_cfg["template_files_dir"] = tpl_dir
+                # 若向导里配置了 origin_map，则默认产品类别设为第一项，
+                # 否则置空（避免硬编码 "环氧树脂"）
+                om = init_cfg["origin_map"]
+                if om:
+                    init_cfg["last_product_category"] = next(iter(om.keys()))
+                else:
+                    init_cfg["last_product_category"] = ""
+            else:
+                # 兼容旧调用：用硬编码默认值
+                init_cfg["last_product_category"] = "环氧树脂"
+                init_cfg.update(_config_defaults())
             _safe_write_json(self.config_file, init_cfg)
         else:
             # 更新 root_dir
@@ -164,6 +208,8 @@ class Storage:
             self.save_config(cfg)
 
         # 旧版本升级兼容：无论 config.json 是否新建，都检查并补写缺失的默认字段
+        # 注意：从向导初始化时，init_cfg 已经把四个字段全填上了（即使是空 dict），
+        # 因此这里不会再把向导的空值覆盖成硬编码默认值。
         cfg = self.load_config()
         defaults = _config_defaults()
         changed = False
@@ -179,6 +225,18 @@ class Storage:
 
         if not self.history_file.exists():
             _safe_write_json(self.history_file, {"records": []})
+
+        # 向导提供了扫描结果：自动导入业务员
+        if wizard_config is not None:
+            scanned = wizard_config.get("scanned_salespersons") or []
+            if scanned:
+                try:
+                    self.import_scanned_salespersons(
+                        list(scanned), overwrite=True
+                    )
+                except Exception:
+                    # 导入失败不影响 set_root_dir 本身的完成
+                    pass
 
     # -------- config --------
     def load_config(self) -> Dict[str, Any]:
