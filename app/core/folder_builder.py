@@ -10,6 +10,13 @@
 import os
 import re
 import shutil
+# 同族扩展名：精确匹配文件不存在时，自动尝试同族格式
+_EXT_SIBLINGS = {
+    ".doc": [".docx"],
+    ".docx": [".doc"],
+    ".xls": [".xlsx"],
+    ".xlsx": [".xls"],
+}
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -291,16 +298,28 @@ def copy_template_files(base_path: str,
                     "reason": "未找到匹配的产地模板",
                 })
                 continue
-            src = tpl_dir / resolved
+                        src = tpl_dir / resolved
             if not src.exists():
-                results.append({
-                    "folder": str(target_folder),
-                    "src": str(src),
-                    "dst": "",
-                    "copied": False,
-                    "reason": "模板文件不存在",
-                })
-                continue
+                # ★ 尝试同族扩展名回退（.doc↔.docx, .xls↔.xlsx）
+                found_sibling = False
+                src_ext = os.path.splitext(str(src))[1].lower()
+                for alt_ext in _EXT_SIBLINGS.get(src_ext, []):
+                    alt_src = src.with_suffix(alt_ext)
+                    if alt_src.exists():
+                        src = alt_src
+                        # 同步更新 resolved，让后续的文件名扩展名也跟着变
+                        resolved = os.path.splitext(resolved)[0] + alt_ext
+                        found_sibling = True
+                        break
+                if not found_sibling:
+                    results.append({
+                        "folder": str(target_folder),
+                        "src": str(src),
+                        "dst": "",
+                        "copied": False,
+                        "reason": "模板文件不存在",
+                    })
+                    continue
             # 目标文件名 = ref_files.filename 按占位符替换；若没后缀则用模板文件扩展名
             raw_name = rf.get("filename", "")
             filled_name = replace_placeholders(raw_name, ctx)
