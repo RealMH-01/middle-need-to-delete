@@ -298,7 +298,7 @@ def copy_template_files(base_path: str,
                     "reason": "未找到匹配的产地模板",
                 })
                 continue
-                        src = tpl_dir / resolved
+            src = tpl_dir / resolved
             if not src.exists():
                 # ★ 尝试同族扩展名回退（.doc↔.docx, .xls↔.xlsx）
                 found_sibling = False
