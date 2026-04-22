@@ -3,14 +3,14 @@
 
 改造要点：
 - 「订单类型」「产品类别」两列改用 QStyledItemDelegate，
-  平时显示纯文字，双击/点击编辑时才弹出下拉框，选完即消失；
+  平时显示纯文字，点击时直接弹出下拉列表，选完即消失；
 - 其余业务逻辑、Excel 导入/导出、黄色警告标记等保持不变。
 """
 
 import os
 from datetime import datetime
 
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtCore import Qt, QTimer, pyqtSignal
 from PyQt5.QtGui import QBrush, QColor
 from PyQt5.QtWidgets import (
     QCheckBox, QComboBox, QFileDialog, QGridLayout, QGroupBox, QHBoxLayout,
@@ -30,7 +30,7 @@ _WARN_FG = QColor("#000000")
 
 
 # =====================================================================
-# Delegate：平时纯文字，编辑时弹出下拉框
+# Delegate：平时纯文字，单击直接弹出下拉列表，选完自动消失
 # =====================================================================
 class _ComboDelegate(QStyledItemDelegate):
     """通用的下拉框委托。
@@ -52,9 +52,11 @@ class _ComboDelegate(QStyledItemDelegate):
     def createEditor(self, parent, option, index):
         editor = QComboBox(parent)
         editor.addItems(self._items)
-        # 选中后立即提交并关闭，无需再点别处
+        # 选中后立即提交并关闭
         editor.activated.connect(lambda: self.commitData.emit(editor))
         editor.activated.connect(lambda: self.closeEditor.emit(editor))
+        # ★ 跳过中间态，直接弹出下拉列表
+        QTimer.singleShot(0, editor.showPopup)
         return editor
 
     def setEditorData(self, editor, index):
@@ -180,7 +182,7 @@ class BatchPage(QWidget):
         self.table.setColumnWidth(8, 120)
         self.table.setColumnWidth(9, 220)
 
-        # ★ 用 Delegate 替代 setCellWidget
+        # ★ Delegate：订单类型（列1）、产品类别（列6）
         self._type_delegate = _ComboDelegate(["外贸", "内贸"], self.table)
         self.table.setItemDelegateForColumn(1, self._type_delegate)
 
@@ -243,7 +245,7 @@ class BatchPage(QWidget):
         it.setTextAlignment(Qt.AlignCenter)
         self.table.setItem(r, 0, it)
 
-        # ★ 订单类型：纯文字 item，编辑时由 Delegate 弹出下拉
+        # ★ 订单类型：纯文字
         order_type = "外贸"
         if data and data.get("order_type") in ("外贸", "内贸"):
             order_type = data["order_type"]
@@ -262,7 +264,7 @@ class BatchPage(QWidget):
         self.table.setItem(
             r, 5, QTableWidgetItem(data.get("po_no", "") if data else ""))
 
-        # ★ 产品类别：纯文字 item，编辑时由 Delegate 弹出下拉
+        # ★ 产品类别：纯文字
         cfg = self.storage.load_config() if self.storage else {}
         category_options = list((cfg.get("origin_map") or {}).keys())
         cat_value = ""
@@ -514,7 +516,7 @@ class BatchPage(QWidget):
 
         cat_col_hidden = self.table.isColumnHidden(6)
         for r in range(self.table.rowCount()):
-            # ★ 改为从 item 读取，不再用 cellWidget
+            # ★ 从 item 读取，不再用 cellWidget
             type_item = self.table.item(r, 1)
             order_type = type_item.text().strip() if type_item else "外贸"
             if order_type not in ("外贸", "内贸"):
@@ -531,10 +533,9 @@ class BatchPage(QWidget):
             if cat_col_hidden:
                 product_category = ""
             else:
-                # ★ 改为从 item 读取
+                # ★ 从 item 读取
                 cat_item = self.table.item(r, 6)
                 product_category = cat_item.text().strip() if cat_item else ""
-                # 无效值静默置空
                 cfg = self.storage.load_config() if self.storage else {}
                 valid_cats = list((cfg.get("origin_map") or {}).keys())
                 if product_category and valid_cats and product_category not in valid_cats:
