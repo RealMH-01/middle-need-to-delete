@@ -23,6 +23,7 @@ from PyQt5.QtWidgets import (
 # 章节锚点 ID（稳定的英文 id，避免中文 fragment 问题）
 SECTIONS = [
     ("sec-quick", "快速开始"),
+    ("sec-tutorial", "新手实战教程"),
     ("sec-single", "创建订单"),
     ("sec-batch", "批量导入"),
     ("sec-templates", "模板管理"),
@@ -81,6 +82,13 @@ def _build_help_html() -> str:
       }
       .warn {
         background: #FF6B6B;
+        border: 4px solid #000000;
+        padding: 10px 14px;
+        margin: 12px 0;
+        border-radius: 0px;
+      }
+      .scene {
+        background: #E8F5E9;
         border: 4px solid #000000;
         padding: 10px 14px;
         margin: 12px 0;
@@ -161,10 +169,337 @@ def _build_help_html() -> str:
 
     <div class="note"><b>已经创建过的订单再跑一遍也不会出问题</b>——程序只会补建缺少的文件夹，
     不会覆盖或删除你已有的任何内容。</div>
+
+    <div class="tip"><b>第一次使用？</b>强烈建议你看下一章「新手实战教程」，
+    跟着虚拟场景走一遍完整流程，10 分钟就能上手！</div>
+    """
+
+    tutorial = """
+    <h1 id="sec-tutorial">第二章 · 新手实战教程</h1>
+
+    <div class="scene"><b>教程说明</b><br/>
+    这一章会带你从零走完一个完整的流程。我们虚构了一个"星辰贸易公司"，
+    它的文件夹结构、模板文件跟程序默认的<b>完全不一样</b>。
+    跟着做一遍，你就知道怎么改成自己公司的东西了。
+    <br/><br/>
+    <b>你不需要真的有这家公司的文件</b>——教程会告诉你每一步在哪里点、填什么。
+    如果你想跟着实际操作一遍，可以在电脑上随便建几个空文件夹和空文件来模拟。</div>
+
+    <h2>场景设定：星辰贸易公司</h2>
+
+    <p>星辰贸易做两种产品：<b>塑料原料</b>（江苏工厂生产）和<b>化工助剂</b>（广东工厂生产）。</p>
+
+    <p>公司现有的文件夹结构长这样（跟程序默认的完全不同）：</p>
+    <pre>D:\\星辰贸易\\
+├── Orders\\                    ← 订单根文件夹（不叫"1订单"）
+│   ├── 王磊\\                  ← 业务员
+│   │   ├── 美国客户ABC\\       ← 客户
+│   │   └── 德国客户DEF\\
+│   └── 陈静\\
+│       └── 日本客户GHI\\
+└── 公司模板文件\\               ← 模板文件目录（不叫默认的）
+    ├── 通用\\
+    │   └── 采购合同.xlsx
+    ├── 外贸通用\\
+    │   ├── 商业发票.xlsx
+    │   └── 装箱单.xlsx
+    ├── 江苏工厂\\              ← 塑料原料对应的工厂
+    │   ├── 江苏工厂外贸生产.xlsx
+    │   └── 江苏工厂外贸发货.xlsx
+    └── 广东工厂\\              ← 化工助剂对应的工厂
+        ├── 广东工厂外贸生产.docx
+        └── 广东工厂外贸发货.docx</pre>
+
+    <p>每个订单创建时，公司希望的文件夹结构是这样的（也跟默认不同）：</p>
+    <pre>订单号/
+├── 合同单据/           ← 放采购合同、商业发票、装箱单
+├── 生产跟踪/           ← 放生产通知单、发货通知单
+├── 物流资料/           ← 放提单、运输文件
+│   └── 报关文件/       ← 子文件夹，放报关相关
+└── 质检报告/           ← 放质检文件</pre>
+
+    <p>现在我们一步步把程序配成这样。</p>
+
+    <h2>第 1 步：设置根目录</h2>
+
+    <div class="note"><b>你现在要做什么：</b>告诉程序你公司的资料放在哪里。</div>
+
+    <ol>
+      <li>打开程序，看到首页</li>
+      <li>在顶部找到「公司资料根目录」那一行</li>
+      <li>点 <span class="btn">浏览…</span>，选择 <code>D:\\星辰贸易</code></li>
+      <li>点 <span class="btn">保存</span></li>
+      <li>再找到「模板文件目录」那一行</li>
+      <li>点 <span class="btn">浏览…</span>，选择 <code>D:\\星辰贸易\\公司模板文件</code></li>
+      <li>点 <span class="btn">保存</span></li>
+    </ol>
+
+    <div class="tip"><b>为什么要设两个目录？</b>
+    <br/>· 根目录 = 你公司所有资料的总文件夹
+    <br/>· 模板文件目录 = 放模板文件（空白的合同、发票等）的地方，程序会从这里复制文件到新订单里</div>
+
+    <h2>第 2 步：修改高级设置</h2>
+
+    <div class="note"><b>你现在要做什么：</b>告诉程序你们公司的订单文件夹叫什么名字、
+    产品类别跟工厂的对应关系。</div>
+
+    <ol>
+      <li>在首页底部，点 <span class="btn">⚙ 高级设置</span></li>
+      <li>找到「订单根文件夹名称」，把默认的 <code>1订单</code> 改成 <code>Orders</code>
+        <br/>（因为星辰贸易的订单文件夹就叫 Orders）</li>
+      <li>找到「产品类别与产地映射」表格，把默认的内容<b>全部删掉</b>，改成：
+        <table>
+          <tr><th>产品类别</th><th>对应产地（文件夹名）</th></tr>
+          <tr><td>塑料原料</td><td>江苏工厂</td></tr>
+          <tr><td>化工助剂</td><td>广东工厂</td></tr>
+        </table>
+      </li>
+      <li>找到「产地文件扩展名映射」表格，把默认的<b>全部删掉</b>，改成：
+        <table>
+          <tr><th>产地/文档类型</th><th>扩展名</th></tr>
+          <tr><td>江苏工厂/外贸生产</td><td>.xlsx</td></tr>
+          <tr><td>江苏工厂/外贸发货</td><td>.xlsx</td></tr>
+          <tr><td>广东工厂/外贸生产</td><td>.docx</td></tr>
+          <tr><td>广东工厂/外贸发货</td><td>.docx</td></tr>
+        </table>
+      </li>
+      <li>点 <span class="btn">保存</span> 关闭高级设置</li>
+    </ol>
+
+    <div class="tip"><b>这些映射是什么意思？</b>
+    <br/>当你创建订单时选了「塑料原料」，程序就知道要去「江苏工厂」文件夹里找模板文件。
+    <br/>选了「化工助剂」就去「广东工厂」文件夹找。就这么简单。</div>
+
+    <h2>第 3 步：导入业务员</h2>
+
+    <div class="note"><b>你现在要做什么：</b>让程序认识你们公司的业务员。</div>
+
+    <ol>
+      <li>回到首页，点 <span class="btn">🧭 扫描导入业务员</span></li>
+      <li>程序会自动扫描 <code>D:\\星辰贸易\\Orders\\</code> 下面的文件夹</li>
+      <li>你会看到列出了「王磊」和「陈静」两个文件夹</li>
+      <li>勾选它们（旁边的下拉标注保持"业务员"不用改）</li>
+      <li>点 <span class="btn">确认导入</span></li>
+      <li>程序会自动把业务员和他们下面的客户都导进来</li>
+    </ol>
+
+    <div class="tip">导入完成后，王磊下面会自动识别出「美国客户ABC」「德国客户DEF」，
+    陈静下面会识别出「日本客户GHI」。你不用手动一个个添加。</div>
+
+    <h2>第 4 步：自定义模板结构（重点！）</h2>
+
+    <div class="note"><b>你现在要做什么：</b>把程序默认的文件夹结构改成星辰贸易自己的结构。
+    <br/>这是整个教程<b>最关键</b>的一步，也是大多数人最困惑的地方。跟紧了！</div>
+
+    <h3>4.1 进入模板编辑器</h3>
+    <ol>
+      <li>点首页的 <span class="btn">🗂 模板管理</span></li>
+      <li>在左边列表中，找到「公司标准·外贸」，点一下选中它</li>
+      <li>点 <span class="btn">编辑</span> 按钮，进入模板编辑器</li>
+    </ol>
+
+    <h3>4.2 删掉默认的子文件夹</h3>
+    <p>现在你看到左边有一棵树，里面是程序默认的文件夹结构（SD、货代资料、商检资料之类的）。
+    我们要把它们<b>全部删掉</b>，换成星辰贸易自己的。</p>
+    <ol>
+      <li>在树上找到根节点下面的第一个子文件夹（比如 "SD"）</li>
+      <li>在它上面<b>点右键</b>，选 <span class="btn">🗑 删除此节点</span></li>
+      <li>如果弹出确认提示，点「是」</li>
+      <li>重复上面的操作，把所有默认子文件夹全部删掉，只留下根节点（就是最顶上那个 <code>&lt;订单号&gt;</code>）</li>
+    </ol>
+
+    <div class="tip">根节点不能删除——它就是"订单号文件夹"本身，所有子文件夹都建在它下面。</div>
+
+    <h3>4.3 添加星辰贸易的文件夹结构</h3>
+    <p>现在树上只剩一个根节点了。我们来添加星辰贸易自己的结构。</p>
+    <ol>
+      <li>在根节点上<b>点右键</b>，选 <span class="btn">➕ 添加子文件夹</span></li>
+      <li>输入名称：<code>合同单据</code>，点确定</li>
+      <li>再在根节点上右键 → 添加子文件夹，输入 <code>生产跟踪</code></li>
+      <li>再添加 <code>物流资料</code></li>
+      <li>再添加 <code>质检报告</code></li>
+      <li>现在找到刚建的「物流资料」节点，在它上面右键 → 添加子文件夹，输入 <code>报关文件</code></li>
+    </ol>
+
+    <p>现在你的树应该长这样：</p>
+    <pre>&lt;订单号&gt;
+├── 合同单据
+├── 生产跟踪
+├── 物流资料
+│   └── 报关文件
+└── 质检报告</pre>
+
+    <div class="note"><b>到这一步</b>，文件夹结构已经改好了！接下来我们给每个文件夹配上要自动复制的模板文件。</div>
+
+    <h3>4.4 给文件夹配上模板文件</h3>
+
+    <p>我们以「合同单据」为例，演示怎么给它添加参考文件：</p>
+    <ol>
+      <li>在左边的树上，<b>点一下</b>「合同单据」节点（选中它）</li>
+      <li>看右边，会显示这个文件夹下的文件列表（现在是空的）</li>
+      <li>点右下方的 <span class="btn">+ 新增</span> 按钮，列表里出现一行新文件</li>
+      <li>现在来设置这个文件的名字：
+        <ul>
+          <li>在文件列表中<b>点一下</b>刚新增的那一行（让它被选中）</li>
+          <li>看列表上方的「常用格式」下拉框，选 <code>前缀-&lt;订单号&gt;.xlsx</code></li>
+          <li>点 <span class="btn">应用格式</span></li>
+          <li>弹出窗口问你输入前缀，输入 <code>采购合同</code>，点确定</li>
+          <li>文件名就变成了 <code>采购合同-&lt;订单号&gt;.xlsx</code></li>
+        </ul>
+      </li>
+      <li>现在来关联实际的模板文件：
+        <ul>
+          <li>确保这一行仍被选中</li>
+          <li>点 <span class="btn">📂 选择模板文件</span></li>
+          <li>会弹出文件选择器，自动定位到你设置的模板文件目录</li>
+          <li>进入「通用」文件夹，选中 <code>采购合同.xlsx</code>，点打开</li>
+          <li>右边表格的第三列「模板文件」就自动填上了路径</li>
+        </ul>
+      </li>
+      <li>点 <span class="btn">✔ 应用修改到当前文件夹</span>（重要！不点这个改动不会生效）</li>
+    </ol>
+
+    <div class="tip"><b>总结一下刚才做了什么：</b>
+    <br/>1. 给「合同单据」文件夹添加了一个文件条目
+    <br/>2. 设置了它的命名规则（采购合同-订单号.xlsx）
+    <br/>3. 告诉程序去哪里找模板文件原件（通用/采购合同.xlsx）
+    <br/>创建订单时，程序就会自动把这个模板文件复制进去并改好名字。</div>
+
+    <p>接下来用同样的方法给「合同单据」再添加两个文件：</p>
+    <table>
+      <tr><th>文件名设置</th><th>关联的模板文件</th></tr>
+      <tr><td><code>商业发票-&lt;订单号&gt;.xlsx</code></td><td>外贸通用/商业发票.xlsx</td></tr>
+      <tr><td><code>装箱单-&lt;订单号&gt;.xlsx</code></td><td>外贸通用/装箱单.xlsx</td></tr>
+    </table>
+
+    <p>然后点左边树上的「生产跟踪」节点，给它添加文件：</p>
+    <table>
+      <tr><th>文件名设置</th><th>关联的模板文件</th></tr>
+      <tr><td><code>生产通知单-&lt;订单号&gt;</code>（不带扩展名！）</td><td><code>[产地]外贸生产</code>（手动输入）</td></tr>
+      <tr><td><code>发货通知单-&lt;订单号&gt;</code>（不带扩展名！）</td><td><code>[产地]外贸发货</code>（手动输入）</td></tr>
+    </table>
+
+    <div class="note"><b>注意！</b>上面这两个文件比较特殊：
+    <br/>· 文件名<b>没有写扩展名</b>——因为不同工厂的文件格式不一样（江苏用 .xlsx，广东用 .docx）
+    <br/>· 模板文件写的是 <code>[产地]外贸生产</code>——这里的 <code>[产地]</code> 是个特殊标记
+    <br/><br/>
+    <b>程序会这样处理：</b>如果这笔订单的产品类别选了「塑料原料」，
+    程序就把 [产地] 替换成「江苏工厂」，去找 <code>江苏工厂/江苏工厂外贸生产.xlsx</code>，
+    同时自动给文件名补上 <code>.xlsx</code> 扩展名。
+    <br/>如果选了「化工助剂」，就去找 <code>广东工厂/广东工厂外贸生产.docx</code>，补上 <code>.docx</code>。
+    <br/><br/>
+    <b>这就是为什么第 2 步要设置那些映射——它们就是在这里发挥作用的。</b></div>
+
+    <p>「物流资料」和「质检报告」文件夹你可以暂时不添加文件（留空就行），
+    或者自己练习添加。只要掌握了上面的方法，添加多少都一样。</p>
+
+    <h3>4.5 保存模板</h3>
+    <ol>
+      <li>确认所有文件夹和文件都配好了</li>
+      <li>点模板编辑器底部的 <span class="btn">保存</span> 按钮</li>
+      <li>模板就改好了！</li>
+    </ol>
+
+    <div class="tip"><b>保存的是公司标准模板</b>，以后所有人创建外贸订单都会用这个结构。
+    如果某个业务员或客户需要不一样的结构，可以「另存为业务员个人模板」或「另存为客户专属模板」。</div>
+
+    <h2>第 5 步：创建第一笔订单！</h2>
+
+    <div class="note"><b>你现在要做什么：</b>用刚配好的模板，创建一笔真实订单，验证一切正常。</div>
+
+    <ol>
+      <li>回到首页，点 <span class="btn">📝 单笔创建</span></li>
+      <li>在上方选择：
+        <ul>
+          <li>业务员：<b>王磊</b></li>
+          <li>客户：<b>美国客户ABC</b></li>
+          <li>订单类型：<b>外贸</b></li>
+          <li>产品类别：<b>塑料原料</b></li>
+        </ul>
+      </li>
+      <li>在下方填写：
+        <ul>
+          <li>订单号：<code>SC-2026001</code></li>
+          <li>客户名称：（已自动填好"美国客户ABC"）</li>
+          <li>产品信息：<code>塑料原料PP 500KG</code>（选填）</li>
+        </ul>
+      </li>
+      <li>点 <span class="btn">下一步：扫描并预览 →</span></li>
+      <li>预览窗口里你会看到：
+        <pre>📁 SC-2026001          ← 待创建（蓝色）
+├── 📁 合同单据         ← 待创建
+├── 📁 生产跟踪         ← 待创建
+├── 📁 物流资料         ← 待创建
+│   └── 📁 报关文件     ← 待创建
+└── 📁 质检报告         ← 待创建</pre>
+        全都是蓝色"待创建"——因为这是新订单。
+      </li>
+      <li>点 <span class="btn">确认创建</span></li>
+    </ol>
+
+    <h2>第 6 步：验证结果</h2>
+
+    <p>创建完成后，打开文件管理器，去看看实际创建出来的文件夹：</p>
+    <pre>D:\\星辰贸易\\Orders\\王磊\\美国客户ABC\\SC-2026001\\
+├── 合同单据\\
+│   ├── 采购合同-SC-2026001_对照.xlsx     ← 从 通用/采购合同.xlsx 复制来的
+│   ├── 商业发票-SC-2026001_对照.xlsx     ← 从 外贸通用/商业发票.xlsx 复制来的
+│   └── 装箱单-SC-2026001_对照.xlsx       ← 从 外贸通用/装箱单.xlsx 复制来的
+├── 生产跟踪\\
+│   ├── 生产通知单-SC-2026001_对照.xlsx   ← 从 江苏工厂/...xlsx 复制来的
+│   └── 发货通知单-SC-2026001_对照.xlsx   ← 因为选了"塑料原料"→ 江苏工厂
+├── 物流资料\\
+│   └── 报关文件\\
+├── 质检报告\\
+└── 文件清单-SC-2026001.xlsx              ← 程序自动生成的勾选清单</pre>
+
+    <div class="scene"><b>注意看：</b>
+    <br/>· 文件名里的 <code>&lt;订单号&gt;</code> 已经自动替换成了 <code>SC-2026001</code>
+    <br/>· 因为产品类别选了「塑料原料」→ 对应「江苏工厂」→ 所以生产跟踪里的文件是 <code>.xlsx</code> 格式
+    <br/>· 如果你选的是「化工助剂」→ 对应「广东工厂」→ 文件就会是 <code>.docx</code> 格式
+    <br/>· 所有文件都带了 <code>_对照</code> 后缀——这是空白模板，等你改完实际文件后可以用「整理文件夹」一键清理掉</div>
+
+    <h2>第 7 步：日常使用（整理文件夹）</h2>
+
+    <p>实际工作中的流程是这样的：</p>
+    <ol>
+      <li>程序创建了订单文件夹和空白模板文件（带 _对照）</li>
+      <li>你从上一票订单文件夹里<b>复制旧文件</b>过来（比如上一票的 CI、PL 等）</li>
+      <li>对照着「_对照」文件，修改旧文件里的内容（换成这一票的订单号、金额等）</li>
+      <li>改完后，点创建完成界面上的 <span class="btn">🧹 整理文件夹</span></li>
+      <li>程序会自动：
+        <ul>
+          <li>删除所有带「_对照」的空白文件</li>
+          <li>把你的实际工作文件按命名规则重命名</li>
+        </ul>
+      </li>
+      <li>确认操作列表无误后，点 <span class="btn">执行整理</span></li>
+    </ol>
+
+    <h2>教程总结</h2>
+
+    <div class="scene"><b>恭喜！你已经完成了新手实战教程。</b>
+    <br/><br/>
+    回顾一下你学会了什么：
+    <br/><br/>
+    <b>第 1 步</b>：设置根目录和模板文件目录（告诉程序文件放在哪）
+    <br/><b>第 2 步</b>：修改高级设置（订单文件夹名、产品类别映射）
+    <br/><b>第 3 步</b>：导入业务员（让程序认识你们公司的人）
+    <br/><b>第 4 步</b>：自定义模板结构（这是核心，决定了订单文件夹长什么样）
+    <br/><b>第 5 步</b>：创建订单（日常操作就这么简单）
+    <br/><b>第 6 步</b>：验证结果
+    <br/><b>第 7 步</b>：整理文件夹（日常收尾操作）
+    <br/><br/>
+    现在你可以把教程里的"星辰贸易"换成你自己公司的真实信息，
+    按同样的步骤配一遍，就完成了！
+    <br/><br/>
+    <b>记住最重要的一点：这个程序里没有任何东西是不可修改的。</b>
+    文件夹结构、文件名、产品类别、业务员、客户——全都可以随时改。
+    改错了也没关系，不会丢失你的实际文件。</div>
     """
 
     single = """
-    <h1 id="sec-single">第二章 · 创建订单文件夹</h1>
+    <h1 id="sec-single">第三章 · 创建订单文件夹</h1>
 
     <h2>基本步骤</h2>
     <ol>
@@ -229,7 +564,7 @@ def _build_help_html() -> str:
     """
 
     batch = """
-    <h1 id="sec-batch">第三章 · 批量导入（一次创建多个订单）</h1>
+    <h1 id="sec-batch">第四章 · 批量导入（一次创建多个订单）</h1>
 
     <ol>
       <li>点首页的 <span class="btn">📦 批量导入</span> 按钮</li>
@@ -261,7 +596,7 @@ def _build_help_html() -> str:
     """
 
     templates = """
-    <h1 id="sec-templates">第四章 · 模板管理</h1>
+    <h1 id="sec-templates">第五章 · 模板管理</h1>
 
     <p>这个功能用来查看和管理文件夹模板。程序内置了
        <b>外贸</b> 和 <b>内贸</b> 两套标准模板。</p>
@@ -355,7 +690,7 @@ def _build_help_html() -> str:
     """
 
     history = """
-    <h1 id="sec-history">第五章 · 历史记录</h1>
+    <h1 id="sec-history">第六章 · 历史记录</h1>
 
     <ol>
       <li>点首页 <span class="btn">🕘 历史记录</span></li>
@@ -374,7 +709,7 @@ def _build_help_html() -> str:
     """
 
     naming = """
-    <h1 id="sec-naming">第六章 · 命名变量说明</h1>
+    <h1 id="sec-naming">第七章 · 命名变量说明</h1>
 
     <p>在「模板管理」中编辑文件名时，可以使用以下<b>占位符</b>，
     程序在创建时会自动替换成实际内容：</p>
@@ -399,7 +734,7 @@ def _build_help_html() -> str:
     """
 
     faq = """
-    <h1 id="sec-faq">第七章 · 常见问题</h1>
+    <h1 id="sec-faq">第八章 · 常见问题</h1>
 
     <h3>Q：模板下拉框是空的怎么办？</h3>
     <p>A：检查左边的"订单类型"是不是选对了。外贸和内贸用的是不同的模板，
@@ -442,9 +777,14 @@ def _build_help_html() -> str:
     <h3>Q：想给同事用这个程序，要怎么做？</h3>
     <p>A：把整个程序文件夹发给同事就行。同事打开后会弹出首次设置向导，
     按提示设置自己的根目录和导入业务员即可。</p>
+
+    <h3>Q：我想从零搭一套跟默认完全不同的模板，怎么做？</h3>
+    <p>A：请看本帮助的<b>第二章「新手实战教程」</b>，那里有完整的手把手教程，
+    从一个全新的虚构公司场景出发，教你怎么把默认模板全部删掉、
+    从零搭建自己的文件夹结构。</p>
     """
 
-    parts = [css, quick, single, batch, templates, history, naming, faq]
+    parts = [css, quick, tutorial, single, batch, templates, history, naming, faq]
     return "<html><body>" + "\n".join(parts) + "</body></html>"
 
 
@@ -465,12 +805,10 @@ class HelpPage(QWidget):
         root.setContentsMargins(14, 12, 14, 12)
         root.setSpacing(10)
 
-        # 顶部标题（DockWidget 自带标题栏，这里再显式放一个标题更醒目）
         title = QLabel("使用帮助")
         title.setObjectName("TitleLabel")
         root.addWidget(title)
 
-        # 章节导航：下拉框（适配较窄面板）
         nav = QHBoxLayout()
         nav.setSpacing(6)
         nav.addWidget(QLabel("快速跳转："))
@@ -481,30 +819,17 @@ class HelpPage(QWidget):
         nav.addWidget(self.cmb_section, 1)
         root.addLayout(nav)
 
-        # 帮助内容
         self.browser = QTextBrowser()
         self.browser.setOpenExternalLinks(True)
         self.browser.setHtml(_build_help_html())
         root.addWidget(self.browser, 1)
 
     def refresh(self):
-        """由主窗口统一调用；本页无状态无需特殊刷新。"""
         self.browser.verticalScrollBar().setValue(0)
 
-    # ------------------------------------------------------------------
-    # 锚点跳转（公开 API，供 MainWindow._show_help_at 调用）
-    # ------------------------------------------------------------------
     def goto_anchor(self, anchor: str):
-        """跳到指定锚点并同步下拉框选择。
-
-        加固 4：``QTextBrowser.scrollToAnchor`` 对 HTML ``id`` 属性的
-        跳转在某些 Qt 版本下不稳定（特别是锚点在文档开头附近或刚加载
-        时）。如果跳转后滚动位置没变化（仍在 0），退化为按章节标题
-        文本搜索作为兜底。
-        """
         if not anchor:
             return
-        # 同步下拉框
         section_label = None
         for i in range(self.cmb_section.count()):
             if self.cmb_section.itemData(i) == anchor:
@@ -513,21 +838,15 @@ class HelpPage(QWidget):
                 self.cmb_section.setCurrentIndex(i)
                 self.cmb_section.blockSignals(False)
                 break
-
         self._scroll_to_anchor_with_fallback(anchor, section_label)
 
     def _scroll_to_anchor_with_fallback(self, anchor: str,
                                         section_label: str = None) -> None:
-        """先尝试 scrollToAnchor；失败时用 find() 定位章节标题。"""
         scroll_bar = self.browser.verticalScrollBar()
         old_pos = scroll_bar.value()
         self.browser.scrollToAnchor(anchor)
-
-        # 加固 4：若滚动条位置未变化（且之前就在顶部），说明跳转可能失败，
-        # 尝试按章节标题文字搜索作为兜底。
         new_pos = scroll_bar.value()
         if new_pos == old_pos and old_pos == 0 and section_label:
-            # 先把光标回到开头，否则 find 会从当前位置向下搜索
             try:
                 from PyQt5.QtGui import QTextCursor
                 cursor = self.browser.textCursor()
@@ -535,10 +854,8 @@ class HelpPage(QWidget):
                 self.browser.setTextCursor(cursor)
                 self.browser.find(section_label)
             except Exception:
-                # 搜索失败也不影响功能，静默跳过
                 pass
 
-    # 内部辅助
     def _on_section_changed(self, idx: int):
         anchor = self.cmb_section.itemData(idx)
         if not anchor:
