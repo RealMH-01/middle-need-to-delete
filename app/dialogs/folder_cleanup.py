@@ -17,12 +17,12 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QBrush, QColor
 from PyQt5.QtWidgets import (
     QComboBox, QDialog, QDialogButtonBox, QHBoxLayout, QHeaderView, QLabel,
-    QMessageBox, QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout,
-    QWidget
+    QMessageBox, QPushButton, QStyledItemDelegate, QTableWidget,
+    QTableWidgetItem, QVBoxLayout, QWidget
 )
 
 from ..core import folder_builder
@@ -255,6 +255,37 @@ def _plan_cleanup(actual_files: List[Dict[str, Any]],
     return plans
 
 
+# =====================================================================
+# Delegate：平时纯文字，单击直接弹出下拉列表，选完自动消失
+# =====================================================================
+class _OpComboDelegate(QStyledItemDelegate):
+    """操作列的下拉框委托。"""
+
+    _ITEMS = [OP_DELETE, OP_RENAME, OP_SKIP]
+
+    def createEditor(self, parent, option, index):
+        editor = QComboBox(parent)
+        editor.addItems(self._ITEMS)
+        editor.activated.connect(lambda: self.commitData.emit(editor))
+        editor.activated.connect(lambda: self.closeEditor.emit(editor))
+        QTimer.singleShot(0, editor.showPopup)
+        return editor
+
+    def setEditorData(self, editor, index):
+        value = index.data(Qt.DisplayRole) or ""
+        idx = editor.findText(value)
+        if idx >= 0:
+            editor.setCurrentIndex(idx)
+        else:
+            editor.setCurrentIndex(0)
+
+    def setModelData(self, editor, model, index):
+        model.setData(index, editor.currentText(), Qt.EditRole)
+
+    def updateEditorGeometry(self, editor, option, index):
+        editor.setGeometry(option.rect)
+
+
 class FolderCleanupDialog(QDialog):
     """文件夹整理对话框"""
 
@@ -327,6 +358,11 @@ class FolderCleanupDialog(QDialog):
         self.table.setColumnWidth(3, 240)
         self.table.setColumnWidth(4, 200)
         self.table.verticalHeader().setVisible(False)
+
+        # ★ 操作列（列2）使用 Delegate
+        self._op_delegate = _OpComboDelegate(self.table)
+        self.table.setItemDelegateForColumn(2, self._op_delegate)
+
         layout.addWidget(self.table, 1)
 
         btns = QDialogButtonBox()
@@ -352,10 +388,9 @@ class FolderCleanupDialog(QDialog):
             it_old.setFlags(it_old.flags() & ~Qt.ItemIsEditable)
             self.table.setItem(r, 1, it_old)
 
-            cmb = QComboBox()
-            cmb.addItems([OP_DELETE, OP_RENAME, OP_SKIP])
-            cmb.setCurrentText(plan["op"])
-            self.table.setCellWidget(r, 2, cmb)
+            # ★ 操作列：纯文字 item，点击时由 Delegate 弹出下拉
+            it_op = QTableWidgetItem(plan["op"])
+            self.table.setItem(r, 2, it_op)
 
             it_new = QTableWidgetItem(plan["new_name"])
             self.table.setItem(r, 3, it_new)
@@ -385,8 +420,11 @@ class FolderCleanupDialog(QDialog):
         out = []
         for r in range(self.table.rowCount()):
             base = self._plans[r]
-            cmb = self.table.cellWidget(r, 2)
-            op = cmb.currentText() if cmb else base["op"]
+            # ★ 从 item 读取，不再用 cellWidget
+            op_item = self.table.item(r, 2)
+            op = op_item.text().strip() if op_item else base["op"]
+            if op not in (OP_DELETE, OP_RENAME, OP_SKIP):
+                op = base["op"]
             new_name_item = self.table.item(r, 3)
             new_name = new_name_item.text().strip() if new_name_item else ""
             out.append({
@@ -431,9 +469,6 @@ class FolderCleanupDialog(QDialog):
                 errors.append(f"删除失败 {p['abs_path']}：{e}")
 
         # 再执行重命名
-        # 加固 6：Windows 文件名保留字符集（/ 和 \ 在 Unix 下也非法）。
-        # 用户在"新文件名"列手动编辑时可能不小心输入这些字符，
-        # 提前拦截并给出明确提示，避免 os.rename 抛出隐晦的 OSError。
         _BAD_NAME_CHARS = set('<>:"/\\|?*')
         for p in plans:
             if p["op"] != OP_RENAME:
